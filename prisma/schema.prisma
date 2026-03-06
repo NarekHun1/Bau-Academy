@@ -1,0 +1,153 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model TrainingUser {
+  id                  Int                   @id @default(autoincrement())
+  telegramId          String                @unique
+  username            String?
+  firstName           String?
+  lastName            String?
+  hasAccess           Boolean               @default(false)
+  createdAt           DateTime              @default(now())
+  updatedAt           DateTime              @updatedAt
+  fullName            String?
+  codes               AccessCode[]
+  requests            AccessRequest[]
+  LessonAccessRequest LessonAccessRequest[]
+  lessonAccess        UserLessonAccess[]
+  UserChapterProgress UserChapterProgress[]
+}
+
+model AccessRequest {
+  id        Int           @id @default(autoincrement())
+  userId    Int
+  status    RequestStatus @default(PENDING)
+  createdAt DateTime      @default(now())
+  decidedAt DateTime?
+  user      TrainingUser  @relation(fields: [userId], references: [id])
+}
+
+model AccessCode {
+  id        Int          @id @default(autoincrement())
+  code      String       @unique
+  userId    Int
+  isUsed    Boolean      @default(false)
+  usedAt    DateTime?
+  createdAt DateTime     @default(now())
+  expiresAt DateTime?
+  user      TrainingUser @relation(fields: [userId], references: [id])
+}
+
+model Lesson {
+  id        Int      @id @default(autoincrement())
+  slug      String   @unique
+  title     String
+  createdAt DateTime @default(now())
+
+  accesses            UserLessonAccess[]
+  LessonAccessRequest LessonAccessRequest[]
+  chapters            LessonChapter[]
+  UserChapterProgress UserChapterProgress[]
+}
+
+model LessonChapter {
+  id        Int      @id @default(autoincrement())
+  lessonId  Int
+  order     Int
+  slug      String
+  title     String
+  createdAt DateTime @default(now())
+
+  lesson              Lesson                @relation(fields: [lessonId], references: [id], onDelete: Cascade)
+  items               LessonItem[]
+  UserChapterProgress UserChapterProgress[]
+
+  @@unique([lessonId, slug], name: "lessonId_slug_chapter")
+  @@unique([lessonId, order], name: "lessonId_order_chapter")
+  @@index([lessonId, order])
+}
+
+model LessonItem {
+  id        Int @id @default(autoincrement())
+  chapterId Int
+
+  type      LessonItemType
+  title     String?
+  url       String?
+  fileId    String?
+  text      String?
+  order     Int            @default(0)
+  createdAt DateTime       @default(now())
+
+  chapter LessonChapter @relation(fields: [chapterId], references: [id], onDelete: Cascade)
+
+  @@unique([chapterId, order], name: "chapterId_order")
+  @@index([chapterId, order])
+}
+
+model UserLessonAccess {
+  id        Int          @id @default(autoincrement())
+  userId    Int
+  lessonId  Int
+  grantedAt DateTime     @default(now())
+  lesson    Lesson       @relation(fields: [lessonId], references: [id])
+  user      TrainingUser @relation(fields: [userId], references: [id])
+
+  @@unique([userId, lessonId], name: "userId_lessonId")
+}
+
+model LessonAccessRequest {
+  id        Int             @id @default(autoincrement())
+  userId    Int
+  lessonId  Int
+  status    LessonReqStatus @default(PENDING)
+  createdAt DateTime        @default(now())
+  decidedAt DateTime?
+  lesson    Lesson          @relation(fields: [lessonId], references: [id])
+  user      TrainingUser    @relation(fields: [userId], references: [id])
+
+  @@unique([userId, lessonId], name: "userId_lessonId_req")
+}
+
+model UserChapterProgress {
+  id         Int       @id @default(autoincrement())
+  userId     Int
+  lessonId   Int
+  chapterId  Int
+  unlockedAt DateTime  @default(now())
+  openedAt   DateTime? // когда реально нажал открыть (опционально)
+
+  user    TrainingUser  @relation(fields: [userId], references: [id])
+  lesson  Lesson        @relation(fields: [lessonId], references: [id])
+  chapter LessonChapter @relation(fields: [chapterId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, chapterId], name: "userId_chapterId")
+  @@index([userId, lessonId])
+}
+
+enum RequestStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+enum LessonItemType {
+  TEXT
+  PHOTO
+  VIDEO
+  DOCUMENT
+  LINK
+  BUTTONS
+}
+
+enum LessonReqStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
