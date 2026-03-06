@@ -7,7 +7,7 @@ RUN npm install
 
 COPY . .
 
-ARG DATABASE_URL="postgresql://postgres:postgres@localhost:5432/postgres"
+ARG DATABASE_URL="postgresql://postgres:postgres@localhost:5432/training"
 RUN DATABASE_URL=$DATABASE_URL npx prisma generate
 
 RUN npm run build
