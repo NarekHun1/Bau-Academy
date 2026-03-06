@@ -12,4 +12,4 @@ RUN npm run build
 
 EXPOSE 3000
 
-CMD ["sh", "-c", "echo 'Running prisma db push...' && npx prisma db push && echo 'Running seed...' && npm run seed:lessons && echo 'Starting app...' && node dist/main.js"]
+CMD ["sh", "-c", "echo 'DB PUSH...' && npx prisma db push && echo 'SEED...' && npm run seed:lessons && echo 'START...' && node dist/src/main.js"]
