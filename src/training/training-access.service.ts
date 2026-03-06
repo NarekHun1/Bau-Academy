@@ -1,8 +1,7 @@
-// src/training/training-access.service.ts
 import { Injectable, ForbiddenException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { Markup } from 'telegraf';
-import { LessonItemType } from '@prisma/client';
+import * as PrismaClientPkg from '@prisma/client';
 
 function genCode() {
     const part = () => Math.random().toString(36).slice(2, 6).toUpperCase();
@@ -22,6 +21,16 @@ function hasUrl(text?: string | null) {
     if (!text) return false;
     return /https?:\/\/\S+/i.test(text);
 }
+
+// fallback if Prisma enum is not generated yet
+const LessonItemType = (PrismaClientPkg as any).LessonItemType ?? {
+    TEXT: 'TEXT',
+    PHOTO: 'PHOTO',
+    VIDEO: 'VIDEO',
+    DOCUMENT: 'DOCUMENT',
+    LINK: 'LINK',
+    BUTTONS: 'BUTTONS',
+};
 
 // ─────────────────────────────────────────────
 // 🔒 24h unlock settings
@@ -128,10 +137,10 @@ export class TrainingAccessService {
             where: { lessonId },
             orderBy: { order: 'asc' },
         });
+
         const first = chapters[0];
         if (!first) return;
 
-        // if exists -> ok, if not -> create
         const existing = await this.prisma.userChapterProgress.findUnique({
             where: { userId_chapterId: { userId, chapterId: first.id } },
         });
@@ -148,7 +157,6 @@ export class TrainingAccessService {
             orderBy: { order: 'asc' },
         });
 
-        // ensure chapter-1 unlocked
         if (chapters.length) {
             await this.ensureFirstChapterUnlocked(userId, lessonId);
         }
@@ -156,22 +164,39 @@ export class TrainingAccessService {
         const progresses = await this.prisma.userChapterProgress.findMany({
             where: { userId, lessonId },
         });
-        const progMap = new Map(progresses.map((p) => [p.chapterId, p]));
+
+        const progMap = new Map<number, (typeof progresses)[number]>(
+            progresses.map((p) => [p.chapterId, p]),
+        );
 
         return chapters.map((ch, idx) => {
             if (idx === 0) {
-                return { ch, isOpen: true, remainingMs: 0, willOpenAt: null as Date | null };
+                return {
+                    ch,
+                    isOpen: true,
+                    remainingMs: 0,
+                    willOpenAt: null as Date | null,
+                };
             }
 
             const prev = chapters[idx - 1];
             const prevProg = progMap.get(prev.id);
 
-            if (!prevProg) {
-                // if somehow previous doesn't exist -> treat as locked
-                return { ch, isOpen: false, remainingMs: UNLOCK_MS, willOpenAt: null as Date | null };
+            if (!prevProg || !prevProg.unlockedAt) {
+                return {
+                    ch,
+                    isOpen: false,
+                    remainingMs: UNLOCK_MS,
+                    willOpenAt: null as Date | null,
+                };
             }
 
-            const willOpenAt = new Date(prevProg.unlockedAt.getTime() + UNLOCK_MS);
+            const unlockedAt =
+                prevProg.unlockedAt instanceof Date
+                    ? prevProg.unlockedAt
+                    : new Date(prevProg.unlockedAt);
+
+            const willOpenAt = new Date(unlockedAt.getTime() + UNLOCK_MS);
             const remainingMs = willOpenAt.getTime() - Date.now();
 
             return {
@@ -190,8 +215,6 @@ export class TrainingAccessService {
     }
 
     private async unlockThisChapterIfTime(userId: number, lessonId: number, chapterId: number) {
-        // When the user opens an unlocked chapter first time:
-        // create progress row (unlockedAt = now) if not exists.
         const existing = await this.prisma.userChapterProgress.findUnique({
             where: { userId_chapterId: { userId, chapterId } },
         });
@@ -203,7 +226,6 @@ export class TrainingAccessService {
     }
 
     private async markChapterOpened(userId: number, chapterId: number) {
-        // don't overwrite if already set
         await this.prisma.userChapterProgress.updateMany({
             where: { userId, chapterId, openedAt: null },
             data: { openedAt: new Date() },
@@ -331,14 +353,12 @@ export class TrainingAccessService {
             return;
         }
 
-        // 🔒 CHECK UNLOCK
         const unlocked = await this.isChapterUnlocked(user.id, lesson.id, chapter.id);
         if (!unlocked) {
             await this.replyLockedChapter(ctx, telegramId, lessonSlug, chapterSlug);
             return;
         }
 
-        // create progress row for this chapter if not exists (so next chapter timer starts)
         await this.unlockThisChapterIfTime(user.id, lesson.id, chapter.id);
         await this.markChapterOpened(user.id, chapter.id);
 
@@ -364,11 +384,10 @@ export class TrainingAccessService {
             const textOpts = {
                 ...protect,
                 parse_mode: undefined as any,
-                // if there is url -> allow preview, else disable it
                 disable_web_page_preview: !urlInside,
             };
 
-            switch (item.type) {
+            switch (item.type as string) {
                 case LessonItemType.TEXT:
                     if (caption.trim()) {
                         await ctx.reply(caption, textOpts);
@@ -425,7 +444,6 @@ export class TrainingAccessService {
                 }
 
                 case LessonItemType.BUTTONS: {
-                    // show chapters list with locks
                     const kbChapters = await this.getLessonChaptersKeyboardForUser(telegramId, lessonSlug);
                     await ctx.reply(caption || 'Ընտրեք դասը 👇', {
                         ...kbChapters,
@@ -435,10 +453,16 @@ export class TrainingAccessService {
                     await sleep(200);
                     break;
                 }
+
+                default:
+                    if (caption.trim()) {
+                        await ctx.reply(caption, textOpts);
+                        await sleep(180);
+                    }
+                    break;
             }
         }
 
-        // ⏳ show next chapter countdown (like "lesson-2 opens in 24h")
         const info = await this.getChaptersUnlockInfo(user.id, lesson.id);
         const current = info.find((x) => x.ch.id === chapter.id);
         const next = info.find((x) => x.ch.order === (current?.ch.order ?? 0) + 1);
@@ -562,7 +586,6 @@ export class TrainingAccessService {
             create: { userId: user.id, lessonId: lesson.id },
         });
 
-        // 🔒 ensure first chapter unlocked when lesson granted
         await this.ensureFirstChapterUnlocked(user.id, lesson.id);
 
         return { ok: true, lessonTitle: lesson.title };
@@ -647,7 +670,6 @@ export class TrainingAccessService {
             }),
         ]);
 
-        // 🔒 ensure first chapter unlocked after approval
         await this.ensureFirstChapterUnlocked(req.userId, req.lessonId);
 
         return {
