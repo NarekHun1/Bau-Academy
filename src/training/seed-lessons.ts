@@ -4,7 +4,8 @@ import { PrismaClient, LessonItemType } from '@prisma/client';
 const prisma = new PrismaClient();
 
 async function seed() {
-
+    console.log('🚀 seed-lessons started');
+    console.log('DATABASE_URL exists:', !!process.env.DATABASE_URL);
     const lessons = [
         { slug: 'capcut-pro', title: '🎬 CapCut Pro (Օնլայն դասընթաց)' },
         { slug: 'canva-pro', title: '🎨 Canva Pro (Օնլայն դասընթաց)' },
