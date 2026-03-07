@@ -1,14 +1,14 @@
 {
-  "name": "LearningBot ",
+  "name": "LearningBot",
   "version": "1.0.0",
   "description": "",
-  "main": "index.js",
+  "main": "dist/src/main.js",
   "scripts": {
     "build": "nest build",
     "start": "node dist/src/main.js",
     "start:dev": "nest start --watch",
     "start:prod": "node dist/src/main.js",
-    "seed:lessons": "ts-node src/training/seed-lessons.ts"
+    "seed:lessons": "node dist/src/training/seed-lessons.js"
   },
   "private": true,
   "dependencies": {
