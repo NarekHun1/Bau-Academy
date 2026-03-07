@@ -8,8 +8,8 @@
     "start": "node dist/main.js",
     "start:dev": "nest start --watch",
     "start:prod": "node dist/main.js",
-    "seed:lessons": "node dist/src/training/seed-lessons.js",
-    "seed:debug": "npm run build && node dist/src/training/seed-lessons.js"
+    "seed:lessons": "node dist/src/training/seed-lessons.ts",
+    "seed:debug": "npm run build && node dist/src/training/seed-lessons.ts"
   },
   "private": true,
   "dependencies": {
