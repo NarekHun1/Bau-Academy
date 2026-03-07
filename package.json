@@ -5,10 +5,10 @@
   "main": "dist/src/main.js",
   "scripts": {
     "build": "nest build",
-    "start": "node dist/src/main.js",
+    "start": "npm run build && node dist/src/main.js",
     "start:dev": "nest start --watch",
-    "start:prod": "node dist/src/main.js",
-    "seed:lessons": "node dist/src/training/seed-lessons.js"
+    "start:prod": "npm run build && node dist/src/main.js",
+    "seed:lessons": "npm run build && node dist/src/training/seed-lessons.js"
   },
   "private": true,
   "dependencies": {
