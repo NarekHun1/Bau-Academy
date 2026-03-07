@@ -5,6 +5,7 @@ import { TelegrafModule } from 'nestjs-telegraf';
 import { PrismaModule } from './prisma/prisma.module';
 import { TelegramUpdate } from './telegram/telegram.update';
 import { TrainingAccessService } from './training/training-access.service';
+import {TrainingSeedService} from "./training/training.seed.service";
 
 @Module({
     imports: [
@@ -20,6 +21,6 @@ import { TrainingAccessService } from './training/training-access.service';
             }),
         }),
     ],
-    providers: [TelegramUpdate, TrainingAccessService],
+    providers: [TelegramUpdate, TrainingAccessService,TrainingSeedService],
 })
 export class AppModule {}
