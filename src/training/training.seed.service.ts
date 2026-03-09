@@ -9,21 +9,12 @@ export class TrainingSeedService implements OnModuleInit {
     constructor(private readonly prisma: PrismaService) {}
 
     async onModuleInit() {
-        await this.seedIfNeeded();
+        await this.seedLessons();
     }
 
-    private async seedIfNeeded() {
+    private async seedLessons() {
         try {
-            this.logger.log('🔍 Checking lessons in DB...');
-
-            const lessonsCount = await this.prisma.lesson.count();
-
-            if (lessonsCount > 0) {
-                this.logger.log(`✅ Lessons already exist (${lessonsCount}), skip seeding`);
-                return;
-            }
-
-            this.logger.log('🚀 No lessons found, start seeding...');
+            this.logger.log('🔍 Syncing lessons in DB...');
 
             const lessons = [
                 { slug: 'capcut-pro', title: '🎬 CapCut Pro (Օնլայն դասընթաց)' },
@@ -477,9 +468,58 @@ export class TrainingSeedService implements OnModuleInit {
                         },
                     ],
                 });
+
+                // ─────────────────────────────────────────────
+                // Canva — lesson-3
+                // ─────────────────────────────────────────────
+                const canvaCh3 = await tx.lessonChapter.findUnique({
+                    where: {
+                        lessonId_slug_chapter: {
+                            lessonId: canva.id,
+                            slug: 'lesson-3',
+                        },
+                    },
+                });
+                if (!canvaCh3) throw new Error('Canva lesson-3 not found');
+
+                await tx.lessonItem.deleteMany({
+                    where: { chapterId: canvaCh3.id },
+                });
+
+                await tx.lessonItem.createMany({
+                    data: [
+                        {
+                            chapterId: canvaCh3.id,
+                            order: 1,
+                            type: LessonItemType.TEXT,
+                            text: `🎨 Canva Pro — Դաս 3`,
+                        },
+                        {
+                            chapterId: canvaCh3.id,
+                            order: 2,
+                            type: LessonItemType.BUTTONS,
+                            text: 'Գույներ, դիզայնի դասավորություն և կոմպոզիցիա',
+                        },
+                        {
+                            chapterId: canvaCh3.id,
+                            order: 3,
+                            type: LessonItemType.VIDEO,
+                            fileId: 'BAACAgIAAxkBAAIFgGmuuLG3G9tL43EYGb7L-VahWoTdAAJJlQACeKxwSeJV24wAAZZ_AjoE',
+                            text: 'Գույներ, դիզայնի դասավորություն ',
+                        },
+                        {
+                            chapterId: canvaCh3.id,
+                            order: 4,
+                            type: LessonItemType.TEXT,
+                            text: `💬 Հարցերի դեպքում կարող եք գրել մեր Telegram չատում։
+
+🔗 https://t.me/+NV_geZ5wfxw3NWUy`,
+                        },
+                    ],
+                });
             });
 
-            this.logger.log('✅ Lessons seeded successfully');
+            this.logger.log('✅ Lessons synced successfully');
         } catch (error) {
             this.logger.error(
                 '❌ Auto-seed failed',
