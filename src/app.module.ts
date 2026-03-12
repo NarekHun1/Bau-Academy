@@ -3,16 +3,15 @@ import { ConfigModule, ConfigService } from '@nestjs/config';
 import { TelegrafModule } from 'nestjs-telegraf';
 
 import { PrismaModule } from './prisma/prisma.module';
-import { TelegramUpdate } from './telegram/telegram.update';
-import { TrainingAccessService } from './training/training-access.service';
-import {TrainingSeedService} from "./training/training.seed.service";
+import { TrainingModule } from './training/training.module';
+import { TelegramModule } from './telegram/telegram.module';
 
 @Module({
     imports: [
         ConfigModule.forRoot({ isGlobal: true }),
-
         PrismaModule,
-
+        TrainingModule,
+        TelegramModule,
         TelegrafModule.forRootAsync({
             imports: [ConfigModule],
             inject: [ConfigService],
@@ -21,6 +20,5 @@ import {TrainingSeedService} from "./training/training.seed.service";
             }),
         }),
     ],
-    providers: [TelegramUpdate],
 })
 export class AppModule {}
