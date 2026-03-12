@@ -72,6 +72,32 @@ export class TrainingAccessService {
         return !!u?.hasAccess;
     }
 
+    async findOrCreateUser(ctx: any) {
+        const telegramId = String(ctx.from?.id || '');
+        const username = ctx.from?.username || null;
+        const firstName = ctx.from?.first_name || null;
+        const lastName = ctx.from?.last_name || null;
+        const fullName = [firstName, lastName].filter(Boolean).join(' ') || null;
+
+        let user = await this.prisma.trainingUser.findUnique({
+            where: { telegramId },
+        });
+
+        if (!user) {
+            user = await this.prisma.trainingUser.create({
+                data: {
+                    telegramId,
+                    username,
+                    firstName,
+                    lastName,
+                    fullName,
+                },
+            });
+        }
+
+        return user;
+    }
+
     // ───────────────────────── MAIN ACCESS REQUESTS (CODE FLOW) ─────────────────────────
     async createRequestIfNeeded(userId: number) {
         const pending = await this.prisma.accessRequest.findFirst({
@@ -111,7 +137,9 @@ export class TrainingAccessService {
             ]);
         }
 
-        const rows = accesses.map((a) => [Markup.button.callback(`✅ ${a.lesson.title}`, `OPEN_LESSON:${a.lesson.slug}`)]);
+        const rows = accesses.map((a) => [
+            Markup.button.callback(`✅ ${a.lesson.title}`, `OPEN_LESSON:${a.lesson.slug}`),
+        ]);
         rows.push([Markup.button.callback('📩 Ընտրել նոր դաս', 'LESSONS_MENU')]);
         return Markup.inlineKeyboard(rows);
     }
@@ -131,7 +159,6 @@ export class TrainingAccessService {
         const first = chapters[0];
         if (!first) return;
 
-        // if exists -> ok, if not -> create
         const existing = await this.prisma.userChapterProgress.findUnique({
             where: { userId_chapterId: { userId, chapterId: first.id } },
         });
@@ -148,7 +175,6 @@ export class TrainingAccessService {
             orderBy: { order: 'asc' },
         });
 
-        // ensure chapter-1 unlocked
         if (chapters.length) {
             await this.ensureFirstChapterUnlocked(userId, lessonId);
         }
@@ -167,7 +193,6 @@ export class TrainingAccessService {
             const prevProg = progMap.get(prev.id);
 
             if (!prevProg) {
-                // if somehow previous doesn't exist -> treat as locked
                 return { ch, isOpen: false, remainingMs: UNLOCK_MS, willOpenAt: null as Date | null };
             }
 
@@ -190,8 +215,6 @@ export class TrainingAccessService {
     }
 
     private async unlockThisChapterIfTime(userId: number, lessonId: number, chapterId: number) {
-        // When the user opens an unlocked chapter first time:
-        // create progress row (unlockedAt = now) if not exists.
         const existing = await this.prisma.userChapterProgress.findUnique({
             where: { userId_chapterId: { userId, chapterId } },
         });
@@ -203,10 +226,23 @@ export class TrainingAccessService {
     }
 
     private async markChapterOpened(userId: number, chapterId: number) {
-        // don't overwrite if already set
         await this.prisma.userChapterProgress.updateMany({
             where: { userId, chapterId, openedAt: null },
             data: { openedAt: new Date() },
+        });
+    }
+
+    private async getQuizForChapter(chapterId: number) {
+        return this.prisma.lessonQuiz.findFirst({
+            where: {
+                chapterId,
+                isActive: true,
+            },
+            select: {
+                id: true,
+                title: true,
+                chapterId: true,
+            },
         });
     }
 
@@ -299,7 +335,7 @@ export class TrainingAccessService {
         );
     }
 
-    // ───────────────────────── SEND CHAPTER CONTENT (with unlock check + next countdown) ─────────────────────────
+    // ───────────────────────── SEND CHAPTER CONTENT ─────────────────────────
     async sendChapterContent(ctx: any, telegramId: string, lessonSlug: string, chapterSlug: string) {
         const user = await this.prisma.trainingUser.findUnique({ where: { telegramId } });
         if (!user) return;
@@ -331,14 +367,12 @@ export class TrainingAccessService {
             return;
         }
 
-        // 🔒 CHECK UNLOCK
         const unlocked = await this.isChapterUnlocked(user.id, lesson.id, chapter.id);
         if (!unlocked) {
             await this.replyLockedChapter(ctx, telegramId, lessonSlug, chapterSlug);
             return;
         }
 
-        // create progress row for this chapter if not exists (so next chapter timer starts)
         await this.unlockThisChapterIfTime(user.id, lesson.id, chapter.id);
         await this.markChapterOpened(user.id, chapter.id);
 
@@ -364,7 +398,6 @@ export class TrainingAccessService {
             const textOpts = {
                 ...protect,
                 parse_mode: undefined as any,
-                // if there is url -> allow preview, else disable it
                 disable_web_page_preview: !urlInside,
             };
 
@@ -425,7 +458,6 @@ export class TrainingAccessService {
                 }
 
                 case LessonItemType.BUTTONS: {
-                    // show chapters list with locks
                     const kbChapters = await this.getLessonChaptersKeyboardForUser(telegramId, lessonSlug);
                     await ctx.reply(caption || 'Ընտրեք դասը 👇', {
                         ...kbChapters,
@@ -438,18 +470,36 @@ export class TrainingAccessService {
             }
         }
 
-        // ⏳ show next chapter countdown (like "lesson-2 opens in 24h")
         const info = await this.getChaptersUnlockInfo(user.id, lesson.id);
         const current = info.find((x) => x.ch.id === chapter.id);
         const next = info.find((x) => x.ch.order === (current?.ch.order ?? 0) + 1);
 
         if (next && !next.isOpen) {
             const left = this.formatRemaining(next.remainingMs);
-            await ctx.reply(`⏳ Հաջորդ դասը (${next.ch.title}) կբացվի ${UNLOCK_HOURS} ժամ հետո։\nՄնաց՝ ${left}`, {
-                ...protect,
-                parse_mode: undefined as any,
-                disable_web_page_preview: true,
-            });
+            await ctx.reply(
+                `⏳ Հաջորդ դասը (${next.ch.title}) կբացվի ${UNLOCK_HOURS} ժամ հետո։\nՄնաց՝ ${left}`,
+                {
+                    ...protect,
+                    parse_mode: undefined as any,
+                    disable_web_page_preview: true,
+                },
+            );
+            await sleep(120);
+        }
+
+        const quiz = await this.getQuizForChapter(chapter.id);
+
+        if (quiz) {
+            await ctx.reply(
+                '✅ Դուք ավարտեցիք այս դասը։\n\nՍեղմեք ներքևի կոճակը՝ թեստը սկսելու համար։',
+                {
+                    ...Markup.inlineKeyboard([
+                        [Markup.button.callback('📝 Սկսել թեստը', `start_quiz_by_chapter:${chapter.id}`)],
+                    ]),
+                    ...protect,
+                    parse_mode: undefined as any,
+                },
+            );
             await sleep(120);
         }
 
@@ -562,7 +612,6 @@ export class TrainingAccessService {
             create: { userId: user.id, lessonId: lesson.id },
         });
 
-        // 🔒 ensure first chapter unlocked when lesson granted
         await this.ensureFirstChapterUnlocked(user.id, lesson.id);
 
         return { ok: true, lessonTitle: lesson.title };
@@ -647,7 +696,6 @@ export class TrainingAccessService {
             }),
         ]);
 
-        // 🔒 ensure first chapter unlocked after approval
         await this.ensureFirstChapterUnlocked(req.userId, req.lessonId);
 
         return {

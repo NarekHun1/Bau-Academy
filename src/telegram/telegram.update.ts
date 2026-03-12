@@ -3,6 +3,7 @@ import { Update, Start, Ctx, On, Action, Command, Hears } from 'nestjs-telegraf'
 import { Context, Markup } from 'telegraf';
 import { ConfigService } from '@nestjs/config';
 import { TrainingAccessService } from '../training/training-access.service';
+import { QuizService } from '../training/quiz.service';
 
 function getAdminIds(config: ConfigService): number[] {
     const raw = config.get<string>('ADMIN_IDS') || '';
@@ -33,8 +34,146 @@ export class TelegramUpdate {
     constructor(
         private readonly config: ConfigService,
         private readonly access: TrainingAccessService,
+        private readonly quizService: QuizService,
     ) {
         this.adminIds = getAdminIds(config);
+    }
+
+    // ───────────────────────── QUIZ START ─────────────────────────
+    @Action(/^start_quiz_by_chapter:(\d+)$/)
+    async startQuizByChapter(@Ctx() ctx: Context) {
+        try {
+            try {
+                await ctx.answerCbQuery();
+            } catch {}
+
+            const data = getCallbackData(ctx);
+            if (!data) return;
+
+            const match = data.match(/^start_quiz_by_chapter:(\d+)$/);
+            if (!match) return;
+
+            const chapterId = Number(match[1]);
+
+            const user = await this.access.findOrCreateUser(ctx);
+            const quiz = await this.quizService.getQuizForChapter(chapterId);
+
+            if (!quiz) {
+                await ctx.reply('Այս դասի համար թեստ դեռ հասանելի չէ։');
+                return;
+            }
+
+            const started = await this.quizService.startQuiz(user.id, quiz.id);
+
+            if (!started.question) {
+                await ctx.reply('Թեստում հարցեր չկան։');
+                return;
+            }
+
+            const text = `📝 Թեստ\n\nՀարց ${started.index}/${started.total}\n\n${started.question.text}`;
+            const replyMarkup = {
+                inline_keyboard: started.question.options.map((opt) => [
+                    {
+                        text: opt.text,
+                        callback_data: `quiz_answer:${started.attempt.id}:${started.question.id}:${opt.order}`,
+                    },
+                ]),
+            };
+
+            try {
+                await ctx.editMessageText(text, { reply_markup: replyMarkup });
+            } catch {
+                await ctx.reply(text, { reply_markup: replyMarkup });
+            }
+        } catch (e) {
+            console.error('startQuizByChapter error', e);
+            await ctx.reply('Սխալ առաջացավ թեստը սկսելու ժամանակ։');
+        }
+    }
+
+    // ───────────────────────── QUIZ ANSWER ─────────────────────────
+    @Action(/^quiz_answer:(\d+):(\d+):(\d+)$/)
+    async answerQuiz(@Ctx() ctx: Context) {
+        try {
+            try {
+                await ctx.answerCbQuery();
+            } catch {}
+
+            const data = getCallbackData(ctx);
+            if (!data) return;
+
+            const match = data.match(/^quiz_answer:(\d+):(\d+):(\d+)$/);
+            if (!match) return;
+
+            const attemptId = Number(match[1]);
+            const questionId = Number(match[2]);
+            const selectedOption = Number(match[3]);
+
+            const result = await this.quizService.answerQuestion(
+                attemptId,
+                questionId,
+                selectedOption,
+            );
+
+            if (!result.finished) {
+                await ctx.editMessageText(
+                    `📝 Թեստ\n\nՀարց ${result.index}/${result.total}\n\n${result.question.text}`,
+                    {
+                        reply_markup: {
+                            inline_keyboard: result.question.options.map((opt) => [
+                                {
+                                    text: opt.text,
+                                    callback_data: `quiz_answer:${attemptId}:${result.question.id}:${opt.order}`,
+                                },
+                            ]),
+                        },
+                    },
+                );
+                return;
+            }
+
+            const score = result.result.score;
+            const total = result.result.total;
+            const percent = Math.round((score / total) * 100);
+
+            let comment = 'Լավ արդյունք 👍';
+            if (percent >= 90) comment = 'Գերազանց 🎉';
+            else if (percent >= 70) comment = 'Շատ լավ ✅';
+            else if (percent >= 50) comment = 'Լավ է, բայց արժե կրկնել նյութը 🙂';
+            else comment = 'Խորհուրդ է տրվում նորից անցնել դասերը և կրկին փորձել։';
+
+            await ctx.editMessageText(
+                `✅ Թեստն ավարտված է\n\n📊 Ձեր արդյունքը՝ ${score}/${total}\n📈 ${percent}%\n💬 ${comment}`,
+            );
+
+            const fullName =
+                result.result.user.fullName ||
+                [result.result.user.firstName, result.result.user.lastName]
+                    .filter(Boolean)
+                    .join(' ') ||
+                result.result.user.username ||
+                'Unknown';
+
+            for (const adminId of this.adminIds) {
+                try {
+                    await ctx.telegram.sendMessage(
+                        adminId,
+                        `📘 Նոր թեստի արդյունք
+
+👤 Օգտատեր՝ ${fullName}
+🆔 Telegram ID: ${result.result.user.telegramId}
+📝 Թեստ՝ ${result.result.quiz.title}
+✅ Միավոր՝ ${score}/${total}
+📈 Տոկոս՝ ${percent}%`,
+                    );
+                } catch (err) {
+                    console.error('send admin quiz result error', err);
+                }
+            }
+        } catch (e) {
+            console.error('answerQuiz error', e);
+            await ctx.reply('Սխալ առաջացավ պատասխանը մշակելիս։');
+        }
     }
 
     // ───────────────────────── START ─────────────────────────
@@ -60,13 +199,18 @@ export class TelegramUpdate {
                 return;
             }
 
-            await ctx.reply('✅ Մուտքը արդեն բացված է։\n\nՍեղմեք՝ 📚 Իմ դասերը', Markup.keyboard([['📚 Իմ դասերը']]).resize());
+            await ctx.reply(
+                '✅ Մուտքը արդեն բացված է։\n\nՍեղմեք՝ 📚 Իմ դասերը',
+                Markup.keyboard([['📚 Իմ դասերը']]).resize(),
+            );
             return;
         }
 
         const req = await this.access.createRequestIfNeeded(user.id);
 
-        await ctx.reply('⏳ Հայտը ուղարկվել է ադմինին։\nԵրբ Ձեզ տան կոդը՝ պարզապես ուղարկեք այն այստեղ՝ չատում։');
+        await ctx.reply(
+            '⏳ Հայտը ուղարկվել է ադմինին։\nԵրբ Ձեզ տան կոդը՝ պարզապես ուղարկեք այն այստեղ՝ չատում։',
+        );
 
         const info =
             `🆕 Մուտքի հայտ\n` +
@@ -106,7 +250,6 @@ export class TelegramUpdate {
         const data = getCallbackData(ctx);
         if (!data) return;
 
-        // OPEN_CHAPTER:capcut-pro:lesson-1
         const [, lessonSlug, chapterSlug] = data.split(':');
         if (!lessonSlug || !chapterSlug) return;
 
@@ -118,7 +261,6 @@ export class TelegramUpdate {
     }
 
     // ───────────────────────── LOCKED CHAPTER ─────────────────────────
-    // IMPORTANT: this needs TrainingAccessService.replyLockedChapter(...)
     @Action(/LOCKED_CHAPTER:(.+):(.+)/)
     async lockedChapter(@Ctx() ctx: Context) {
         const from = ctx.from;
@@ -128,7 +270,6 @@ export class TelegramUpdate {
         const data = getCallbackData(ctx);
         if (!data) return;
 
-        // LOCKED_CHAPTER:capcut-pro:lesson-2
         const [, lessonSlug, chapterSlug] = data.split(':');
         if (!lessonSlug || !chapterSlug) return;
 
@@ -139,7 +280,7 @@ export class TelegramUpdate {
         await this.access.replyLockedChapter(ctx, telegramId, lessonSlug, chapterSlug);
     }
 
-    // ───────────────────────── OPEN LESSON (shows chapters) ─────────────────────────
+    // ───────────────────────── OPEN LESSON ─────────────────────────
     @Action(/OPEN_LESSON:(.+)/)
     async openLesson(@Ctx() ctx: Context) {
         const from = ctx.from;
@@ -164,10 +305,7 @@ export class TelegramUpdate {
             return;
         }
 
-        // ✅ FIX: use keyboard with locks, depends on user
         const kb = await this.access.getLessonChaptersKeyboardForUser(telegramId, lessonSlug);
-
-        // If you want: show title too
         await ctx.reply(res.text || '📚 Ընտրեք դասը՝', { ...kb, protect_content: true });
     }
 
@@ -237,7 +375,10 @@ export class TelegramUpdate {
 
         const tgId = Number(user.telegramId);
         try {
-            await ctx.telegram.sendMessage(tgId, '❌ Մուտքը չի հաստատվել։ Եթե սա սխալ է՝ գրեք ադմինին։');
+            await ctx.telegram.sendMessage(
+                tgId,
+                '❌ Մուտքը չի հաստատվել։ Եթե սա սխալ է՝ գրեք ադմինին։',
+            );
         } catch {}
 
         try {
@@ -255,12 +396,13 @@ export class TelegramUpdate {
         const text = (ctx.message as any)?.text as string;
         const parts = text.split(' ').map((s) => s.trim()).filter(Boolean);
 
-        // /grant 123456789 canva-pro
         const telegramId = parts[1];
         const slug = parts[2];
 
         if (!telegramId || !slug) {
-            await ctx.reply('❗ Ֆորմատը՝\n/grant <telegramId> <lesson-slug>\n\nՕրինակ՝\n/grant 123456789 canva-pro');
+            await ctx.reply(
+                '❗ Ֆորմատը՝\n/grant <telegramId> <lesson-slug>\n\nՕրինակ՝\n/grant 123456789 canva-pro',
+            );
             return;
         }
 
@@ -393,7 +535,9 @@ export class TelegramUpdate {
         } catch {}
 
         try {
-            await ctx.editMessageText(`✅ Հաստատված է՝ ${res.lessonTitle}\nՕգտատեր՝ ${res.fullName} (${res.telegramId})`);
+            await ctx.editMessageText(
+                `✅ Հաստատված է՝ ${res.lessonTitle}\nՕգտատեր՝ ${res.fullName} (${res.telegramId})`,
+            );
         } catch {}
     }
 
@@ -415,7 +559,10 @@ export class TelegramUpdate {
         try {
             await ctx.answerCbQuery();
         } catch {}
-        await ctx.reply('Ընտրեք այն դասը, որի համար ցանկանում եք ստանալ մուտք՝', this.access.lessonsKeyboard());
+        await ctx.reply(
+            'Ընտրեք այն դասը, որի համար ցանկանում եք ստանալ մուտք՝',
+            this.access.lessonsKeyboard(),
+        );
     }
 
     @Action(/LESSON_REJECT:(\d+)/)
@@ -435,11 +582,16 @@ export class TelegramUpdate {
         } catch {}
 
         try {
-            await ctx.telegram.sendMessage(Number(res.telegramId), `❌ «${res.lessonTitle}» դասին մուտքը չի հաստատվել։`);
+            await ctx.telegram.sendMessage(
+                Number(res.telegramId),
+                `❌ «${res.lessonTitle}» դասին մուտքը չի հաստատվել։`,
+            );
         } catch {}
 
         try {
-            await ctx.editMessageText(`❌ Մերժված է՝ ${res.lessonTitle}\nՕգտատեր՝ ${res.fullName} (${res.telegramId})`);
+            await ctx.editMessageText(
+                `❌ Մերժված է՝ ${res.lessonTitle}\nՕգտատեր՝ ${res.fullName} (${res.telegramId})`,
+            );
         } catch {}
     }
 
@@ -453,7 +605,6 @@ export class TelegramUpdate {
         const telegramId = String(from.id);
         const t = text.trim();
 
-        // 1) If user has access but no fullName -> treat as fullName input
         const user = await this.access.getUserByTelegramId(telegramId);
         if (user?.hasAccess && !user.fullName) {
             if (t.split(' ').length < 2) {
@@ -463,11 +614,13 @@ export class TelegramUpdate {
 
             await this.access.setUserFullName(telegramId, t);
 
-            await ctx.reply('✅ Հիանալի է։ Հիմա ընտրեք, որ դասին եք ուզում ստանալ մուտք՝', this.access.lessonsKeyboard());
+            await ctx.reply(
+                '✅ Հիանալի է։ Հիմա ընտրեք, որ դասին եք ուզում ստանալ մուտք՝',
+                this.access.lessonsKeyboard(),
+            );
             return;
         }
 
-        // 2) If no access -> treat as access code
         if (!(await this.access.hasAccess(telegramId))) {
             const res = await this.access.activateCodeForUser(telegramId, t);
 
@@ -490,8 +643,6 @@ export class TelegramUpdate {
             await ctx.reply(msg);
             return;
         }
-
-        // 3) If access ok + fullName ok -> ignore normal messages
     }
 
     // ───────────────────────── ADMIN: GET FILE_ID ─────────────────────────
@@ -535,6 +686,8 @@ export class TelegramUpdate {
         const doc = (ctx.message as any)?.document as { file_id: string; file_name?: string } | undefined;
         if (!doc?.file_id) return;
 
-        await ctx.reply(`📄 DOCUMENT file_id:\n\n${doc.file_id}` + (doc.file_name ? `\n\nname: ${doc.file_name}` : ''));
+        await ctx.reply(
+            `📄 DOCUMENT file_id:\n\n${doc.file_id}` + (doc.file_name ? `\n\nname: ${doc.file_name}` : ''),
+        );
     }
 }

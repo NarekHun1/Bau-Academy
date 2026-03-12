@@ -561,6 +561,7 @@ export class TrainingSeedService implements OnModuleInit {
                         },
                     },
                 });
+
                 if (!canvaCh4) throw new Error('Canva lesson-4 not found');
 
                 await tx.lessonItem.deleteMany({
@@ -600,6 +601,288 @@ export class TrainingSeedService implements OnModuleInit {
                         },
                     ],
                 });
+
+                // ─────────────────────────────────────────────
+                // Canva — final quiz for lesson-4
+                // ─────────────────────────────────────────────
+
+                const existingQuiz = await tx.lessonQuiz.findFirst({
+                    where: {
+                        lessonId: canva.id,
+                        chapterId: canvaCh4.id,
+                    },
+                });
+
+                let createdQuizId: number;
+
+                if (existingQuiz) {
+                    await tx.quizOption.deleteMany({
+                        where: {
+                            question: {
+                                quizId: existingQuiz.id,
+                            },
+                        },
+                    });
+
+                    await tx.quizQuestion.deleteMany({
+                        where: {
+                            quizId: existingQuiz.id,
+                        },
+                    });
+
+                    const updatedQuiz = await tx.lessonQuiz.update({
+                        where: { id: existingQuiz.id },
+                        data: {
+                            title: 'Canva Pro Final Quiz',
+                            isActive: true,
+                        },
+                    });
+
+                    createdQuizId = updatedQuiz.id;
+                } else {
+                    const createdQuiz = await tx.lessonQuiz.create({
+                        data: {
+                            lessonId: canva.id,
+                            chapterId: canvaCh4.id,
+                            title: 'Canva Pro Final Quiz',
+                            isActive: true,
+                        },
+                    });
+
+                    createdQuizId = createdQuiz.id;
+                }
+
+                const quizQuestions = [
+                    {
+                        order: 1,
+                        text: 'ինչի՞ համար է օգտագործվում Templates բաժինը։',
+                        correctOption: 2,
+                        options: [
+                            'Պատկերներ ներբեռնելու համար',
+                            'Պատրաստի դիզայնի շաբլոններ ընտրելու համար',
+                            'Տառատեսակ փոխելու համար',
+                            'Ֆայլերը պահպանելու համար',
+                        ],
+                    },
+                    {
+                        order: 2,
+                        text: 'Layers գործիքը ինչի՞ համար է օգտագործվում։',
+                        correctOption: 2,
+                        options: [
+                            'Տեքստ գրելու համար',
+                            'Էլեմենտների շերտերը կառավարելու համար',
+                            'Նկար ներբեռնելու համար',
+                            'Գույն փոխելու համար',
+                        ],
+                    },
+                    {
+                        order: 3,
+                        text: 'Nudge ֆունկցիան ինչ է անում։',
+                        correctOption: 2,
+                        options: [
+                            'Ջնջում է էլեմենտը',
+                            'Փոքր քայլերով տեղափոխում է օբյեկտը',
+                            'Փոխում է գույնը',
+                            'Մեծացնում է տեքստը',
+                        ],
+                    },
+                    {
+                        order: 4,
+                        text: 'Transparency կոճակը ինչի՞ համար է։',
+                        correctOption: 2,
+                        options: [
+                            'Նկարը պտտելու',
+                            'Օբյեկտի թափանցիկությունը կարգավորելու',
+                            'Տեքստ ավելացնելու',
+                            'Էլեմենտ ջնջելու',
+                        ],
+                    },
+                    {
+                        order: 5,
+                        text: 'Դիզայնում Contrast սկզբունքը նշանակում է։',
+                        correctOption: 2,
+                        options: [
+                            'Նույն գույների օգտագործում',
+                            'Տարբեր գույների կամ չափերի հակադրություն',
+                            'Միայն մեկ տառատեսակ',
+                            'Նկարի կտրում',
+                        ],
+                    },
+                    {
+                        order: 6,
+                        text: 'Elements բաժնում ինչ կարող ենք գտնել։',
+                        correctOption: 2,
+                        options: [
+                            'Տառատեսակներ',
+                            'Գրաֆիկական պատկերներ, icons, shapes և այլն',
+                            'Միայն լուսանկարներ',
+                            'Միայն վիդեոներ',
+                        ],
+                    },
+                    {
+                        order: 7,
+                        text: 'Դիզայնում White Space (բաց տարածք) նշանակում է։',
+                        correctOption: 2,
+                        options: [
+                            'Դիզայնում միայն սպիտակ գույն',
+                            'Ազատ տարածք, որը օգնում է տեսանելիությանը',
+                            'Նկարի ֆոն',
+                            'Տեքստի գույն',
+                        ],
+                    },
+                    {
+                        order: 8,
+                        text: 'Ո՞ր ֆորմատն է ամենահարմար սոց․ մեդիայի պոստերի համար։',
+                        correctOption: 2,
+                        options: ['PDF', 'PNG', 'SVG', 'PPTX'],
+                    },
+                    {
+                        order: 9,
+                        text: 'Duplicate գործիքը ինչի՞ համար է։',
+                        correctOption: 1,
+                        options: [
+                            'Էլեմենտը կրկնօրինակելու',
+                            'Ջնջելու',
+                            'Նկար ներբեռնելու',
+                            'Գույն փոխելու',
+                        ],
+                    },
+                    {
+                        order: 10,
+                        text: 'Brand Kit գործիքը ինչի՞ համար է։',
+                        correctOption: 1,
+                        options: [
+                            'Պահել բրենդի գույները, լոգոն և տառատեսակները',
+                            'Նկարներ կտրել',
+                            'Տեքստ գրել',
+                            'Էլեմենտներ ներբեռնել',
+                        ],
+                    },
+                    {
+                        order: 11,
+                        text: 'Position գործիքը թույլ է տալիս։',
+                        correctOption: 2,
+                        options: [
+                            'Փոխել տառատեսակը',
+                            'Կարգավորել էլեմենտների դասավորությունը',
+                            'Փոխել նկարի գույնը',
+                            'Ջնջել էջը',
+                        ],
+                    },
+                    {
+                        order: 12,
+                        text: 'Դիզայնում Hierarchy նշանակում է։',
+                        correctOption: 2,
+                        options: [
+                            'Բոլոր տարրերը նույն չափի',
+                            'Տեղեկատվության կարևորության հերթականություն',
+                            'Միայն գույների ընտրություն',
+                            'Նկարի չափ',
+                        ],
+                    },
+                    {
+                        order: 13,
+                        text: 'Եթե դիզայնը շատ ծանր է թվում, ինչ պետք է անել։',
+                        correctOption: 2,
+                        options: [
+                            'Ավելացնել ավելի շատ տարրեր',
+                            'Ավելացնել բաց տարածք (white space)',
+                            'Փոխել ֆոն',
+                            'Մեծացնել տեքստը',
+                        ],
+                    },
+                    {
+                        order: 14,
+                        text: 'Background remover գործիքը ինչի՞ համար է։',
+                        correctOption: 1,
+                        options: [
+                            'Ֆոնը հեռացնելու',
+                            'Նկարը պտտելու',
+                            'Գույն փոխելու',
+                            'Տեքստ ավելացնելու',
+                        ],
+                    },
+                    {
+                        order: 15,
+                        text: 'Magic Resize գործիքը թույլ է տալիս։',
+                        correctOption: 1,
+                        options: [
+                            'Փոխել դիզայնի չափը տարբեր հարթակների համար',
+                            'Գույն փոխել',
+                            'Ջնջել էջը',
+                            'Տեքստ գրել',
+                        ],
+                    },
+                    {
+                        order: 16,
+                        text: 'Պրոֆեսիոնալ դիզայն ստեղծելու համար կարևոր է։',
+                        correctOption: 2,
+                        options: [
+                            'Օգտագործել շատ էֆեկտներ',
+                            'Պահել պարզ և մաքուր կոմպոզիցիա',
+                            'Շատ գույներ',
+                            'Շատ տառատեսակներ',
+                        ],
+                    },
+                    {
+                        order: 17,
+                        text: 'Դիզայնում Consistency նշանակում է։',
+                        correctOption: 2,
+                        options: [
+                            'Միշտ տարբեր գույներ',
+                            'Միատեսակ ոճ ամբողջ դիզայնում',
+                            'Շատ տարրեր',
+                            'Միայն նկարներ',
+                        ],
+                    },
+                    {
+                        order: 18,
+                        text: 'Որտե՞ղ կարող ենք գտնել պատրաստի գունային պալիտրաներ։',
+                        correctOption: 2,
+                        options: ['Elements', 'Styles', 'Uploads', 'Projects'],
+                    },
+                    {
+                        order: 19,
+                        text: 'Color picker գործիքը ինչի՞ համար է։',
+                        correctOption: 2,
+                        options: [
+                            'Նկար ներբեռնելու',
+                            'Նկարի/օբյեկտի վրայից գույն վերցնելու',
+                            'Նկար կտրելու',
+                            'Տեքստ ավելացնելու',
+                        ],
+                    },
+                    {
+                        order: 20,
+                        text: 'Դիզայնում սովորաբար խորհուրդ է տրվում օգտագործել։',
+                        correctOption: 2,
+                        options: [
+                            '1–2 գույն',
+                            '2–4 հիմնական գույն',
+                            '8–10 գույն',
+                            'Շատ տարբեր գույներ',
+                        ],
+                    },
+                ];
+
+                for (const q of quizQuestions) {
+                    const createdQuestion = await tx.quizQuestion.create({
+                        data: {
+                            quizId: createdQuizId,
+                            order: q.order,
+                            text: q.text,
+                            correctOption: q.correctOption,
+                        },
+                    });
+
+                    await tx.quizOption.createMany({
+                        data: q.options.map((opt, index) => ({
+                            questionId: createdQuestion.id,
+                            order: index + 1,
+                            text: opt,
+                        })),
+                    });
+                }
             });
 
             this.logger.log('✅ Lessons synced successfully');
