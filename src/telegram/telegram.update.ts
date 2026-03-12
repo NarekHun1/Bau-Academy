@@ -4,6 +4,7 @@ import { Context, Markup } from 'telegraf';
 import { ConfigService } from '@nestjs/config';
 import { TrainingAccessService } from '../training/training-access.service';
 import { QuizService } from '../training/quiz.service';
+import { CertificateService } from '../training/certificate.service';
 
 function getAdminIds(config: ConfigService): number[] {
     const raw = config.get<string>('ADMIN_IDS') || '';
@@ -35,6 +36,7 @@ export class TelegramUpdate {
         private readonly config: ConfigService,
         private readonly access: TrainingAccessService,
         private readonly quizService: QuizService,
+        private readonly certificateService: CertificateService,
     ) {
         this.adminIds = getAdminIds(config);
     }
@@ -142,18 +144,20 @@ export class TelegramUpdate {
             else if (percent >= 50) comment = 'Լավ է, բայց արժե կրկնել նյութը 🙂';
             else comment = 'Խորհուրդ է տրվում նորից անցնել դասերը և կրկին փորձել։';
 
-            await ctx.editMessageText(
-                `✅ Թեստն ավարտված է\n\n📊 Ձեր արդյունքը՝ ${score}/${total}\n📈 ${percent}%\n💬 ${comment}`,
-            );
-
             const fullName =
                 result.result.user.fullName ||
                 [result.result.user.firstName, result.result.user.lastName]
                     .filter(Boolean)
                     .join(' ') ||
                 result.result.user.username ||
-                'Unknown';
+                'Student';
 
+            // Сначала обновляем сообщение с результатом теста
+            await ctx.editMessageText(
+                `✅ Թեստն ավարտված է\n\n📊 Ձեր արդյունքը՝ ${score}/${total}\n📈 ${percent}%\n💬 ${comment}`,
+            );
+
+            // Уведомление админам
             for (const adminId of this.adminIds) {
                 try {
                     await ctx.telegram.sendMessage(
@@ -170,12 +174,42 @@ export class TelegramUpdate {
                     console.error('send admin quiz result error', err);
                 }
             }
+
+            // Если 80%+ — выдаем сертификат
+            if (percent >= 80) {
+                const certificateId = this.certificateService.generateCertificateId(
+                    result.result.user.id,
+                    result.result.quiz.id,
+                );
+
+                const pdf = await this.certificateService.generateCertificateBuffer({
+                    fullName,
+                    courseTitle: result.result.quiz.title,
+                    percent,
+                    issuedAt: new Date(),
+                    certificateId,
+                });
+
+                await ctx.reply(
+                    `🎓 Շնորհավորում ենք ${fullName}!\n\nԴուք հաջողությամբ անցել եք թեստը և ստացել եք սերտիֆիկատ։\n\n📈 Արդյունք՝ ${percent}%`,
+                );
+
+                await ctx.telegram.sendDocument(
+                    ctx.chat!.id,
+                    {
+                        source: pdf,
+                        filename: `certificate-${certificateId}.pdf`,
+                    },
+                    {
+                        caption: `🎓 Ձեր սերտիֆիկատը\nID: ${certificateId}`,
+                    },
+                );
+            }
         } catch (e) {
             console.error('answerQuiz error', e);
             await ctx.reply('Սխալ առաջացավ պատասխանը մշակելիս։');
         }
     }
-
     // ───────────────────────── START ─────────────────────────
     @Start()
     async start(@Ctx() ctx: Context) {
