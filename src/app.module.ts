@@ -21,6 +21,6 @@ import {TrainingSeedService} from "./training/training.seed.service";
             }),
         }),
     ],
-    providers: [TelegramUpdate, TrainingAccessService,TrainingSeedService],
+    providers: [TelegramUpdate],
 })
 export class AppModule {}
