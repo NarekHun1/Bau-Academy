@@ -148,13 +148,14 @@ export class TelegramUpdate {
             else if (percent >= 50) comment = 'Լավ է, բայց արժե կրկնել նյութը 🙂';
             else comment = 'Խորհուրդ է տրվում նորից անցնել դասերը և կրկին փորձել։';
 
-            const fullName =
-                result.result.user.fullName ||
-                [result.result.user.firstName, result.result.user.lastName]
-                    .filter(Boolean)
-                    .join(' ') ||
-                result.result.user.username ||
-                'Student';
+            const fullName = result.result.user.fullName?.trim();
+
+            if (!fullName) {
+                await ctx.reply(
+                    '🎓 Սերտիֆիկատ ստանալու համար նախ գրեք Ձեր անունն ու ազգանունը։ Օրինակ՝ Արման Օգանեսյան',
+                );
+                return;
+            }
 
             // Сначала обновляем сообщение с результатом теста
             await ctx.editMessageText(
