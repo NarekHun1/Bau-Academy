@@ -1,9 +1,12 @@
 import { Module } from '@nestjs/common';
+import { PrismaModule } from '../prisma/prisma.module';
+import { TrainingAccessService } from './training-access.service';
 import { TrainingSeedService } from './training.seed.service';
 import { QuizService } from './quiz.service';
 
 @Module({
-    providers: [TrainingSeedService, QuizService],
-    exports: [QuizService],
+    imports: [PrismaModule],
+    providers: [TrainingAccessService, TrainingSeedService, QuizService],
+    exports: [TrainingAccessService, QuizService],
 })
 export class TrainingModule {}
