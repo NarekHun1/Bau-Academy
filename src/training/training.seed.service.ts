@@ -21,12 +21,19 @@ export class TrainingSeedService implements OnModuleInit {
                 { slug: 'canva-pro', title: '🎨 Canva Pro (Օնլայն դասընթաց)' },
             ];
 
-            const chapters = [
+            const capcutChapters = [
                 { order: 1, slug: 'lesson-1', title: 'Դաս 1 ' },
                 { order: 2, slug: 'lesson-2', title: 'Դաս 2 ' },
                 { order: 3, slug: 'lesson-3', title: 'Դաս 3 ' },
                 { order: 4, slug: 'lesson-4', title: 'Դաս 4 ' },
                 { order: 5, slug: 'lesson-5', title: 'Դաս 5 ' },
+            ];
+
+            const canvaChapters = [
+                { order: 1, slug: 'lesson-1', title: 'Դաս 1 ' },
+                { order: 2, slug: 'lesson-2', title: 'Դաս 2 ' },
+                { order: 3, slug: 'lesson-3', title: 'Դաս 3 ' },
+                { order: 4, slug: 'lesson-4', title: 'Դաս 4 ' },
             ];
 
             await this.prisma.$transaction(async (tx) => {
@@ -48,7 +55,8 @@ export class TrainingSeedService implements OnModuleInit {
                 });
                 if (!canva) throw new Error('canva-pro not found');
 
-                for (const ch of chapters) {
+                // CapCut chapters
+                for (const ch of capcutChapters) {
                     await tx.lessonChapter.upsert({
                         where: {
                             lessonId_slug_chapter: {
@@ -67,7 +75,10 @@ export class TrainingSeedService implements OnModuleInit {
                             order: ch.order,
                         },
                     });
+                }
 
+                // Canva chapters
+                for (const ch of canvaChapters) {
                     await tx.lessonChapter.upsert({
                         where: {
                             lessonId_slug_chapter: {
@@ -85,6 +96,26 @@ export class TrainingSeedService implements OnModuleInit {
                             title: ch.title,
                             order: ch.order,
                         },
+                    });
+                }
+
+                // Удаляем старый lesson-5 у Canva, если он раньше был создан
+                const canvaLesson5 = await tx.lessonChapter.findUnique({
+                    where: {
+                        lessonId_slug_chapter: {
+                            lessonId: canva.id,
+                            slug: 'lesson-5',
+                        },
+                    },
+                });
+
+                if (canvaLesson5) {
+                    await tx.lessonItem.deleteMany({
+                        where: { chapterId: canvaLesson5.id },
+                    });
+
+                    await tx.lessonChapter.delete({
+                        where: { id: canvaLesson5.id },
                     });
                 }
 
@@ -504,11 +535,63 @@ export class TrainingSeedService implements OnModuleInit {
                             chapterId: canvaCh3.id,
                             order: 3,
                             type: LessonItemType.VIDEO,
-                            fileId: 'BAACAgIAAxkBAAIFgGmuuLG3G9tL43EYGb7L-VahWoTdAAJJlQACeKxwSeJV24wAAZZ_AjoE',
+                            fileId:
+                                'BAACAgIAAxkBAAIFgGmuuLG3G9tL43EYGb7L-VahWoTdAAJJlQACeKxwSeJV24wAAZZ_AjoE',
                             text: 'Գույներ, դիզայնի դասավորություն ',
                         },
                         {
                             chapterId: canvaCh3.id,
+                            order: 4,
+                            type: LessonItemType.TEXT,
+                            text: `💬 Հարցերի դեպքում կարող եք գրել մեր Telegram չատում։
+
+🔗 https://t.me/+NV_geZ5wfxw3NWUy`,
+                        },
+                    ],
+                });
+
+                // ─────────────────────────────────────────────
+                // Canva — lesson-4
+                // ─────────────────────────────────────────────
+                const canvaCh4 = await tx.lessonChapter.findUnique({
+                    where: {
+                        lessonId_slug_chapter: {
+                            lessonId: canva.id,
+                            slug: 'lesson-4',
+                        },
+                    },
+                });
+                if (!canvaCh4) throw new Error('Canva lesson-4 not found');
+
+                await tx.lessonItem.deleteMany({
+                    where: { chapterId: canvaCh4.id },
+                });
+
+                await tx.lessonItem.createMany({
+                    data: [
+                        {
+                            chapterId: canvaCh4.id,
+                            order: 1,
+                            type: LessonItemType.TEXT,
+                            text: `🎨 Canva Pro — Դաս 4`,
+                        },
+                        {
+                            chapterId: canvaCh4.id,
+                            order: 2,
+                            type: LessonItemType.BUTTONS,
+                            text:
+                                'Դիզայնի ստեղծում ձևանմուշներով և 0-ից՝ առանց ձևանմուշների։\nDownload, Share',
+                        },
+                        {
+                            chapterId: canvaCh4.id,
+                            order: 3,
+                            type: LessonItemType.VIDEO,
+                            fileId:
+                                'BAACAgIAAxkBAAIHgWmypYAdvI2u4Udkxhkdtlh9Uu2GAAJ7kQACZYyQSW94-CN5j7VuOgQ',
+                            text: 'Դիզայնի ստեղծում ձևանմուշներով',
+                        },
+                        {
+                            chapterId: canvaCh4.id,
                             order: 4,
                             type: LessonItemType.TEXT,
                             text: `💬 Հարցերի դեպքում կարող եք գրել մեր Telegram չատում։
