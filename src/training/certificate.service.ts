@@ -38,207 +38,346 @@ export class CertificateService {
 
             const colors = {
                 blue: '#2F35B0',
+                blueDark: '#23298E',
                 orange: '#F8A12D',
+                orangeSoft: '#FDE7C3',
                 white: '#FFFFFF',
                 textDark: '#1F2937',
                 textMuted: '#6B7280',
                 border: '#E5E7EB',
-                softBg: '#F8F9FC',
+                softBg: '#F7F8FC',
+                cardBg: '#FFFFFF',
+                lineSoft: '#C7CDD9',
+                shadow: '#EEF1F8',
             };
 
-            // Logo path
-            const logoPath = path.join(process.cwd(), 'src', 'assets', 'bau academy.png');            // Для проекта потом лучше заменить на:
-            // const logoPath = path.join(process.cwd(), 'src', 'assets', 'bau-logo.png');
+            const logoPath = path.join(process.cwd(), 'src', 'assets', 'bau academy.png');
+
+            const safeText = (value?: string | null) => (value && value.trim() ? value.trim() : 'N/A');
+
+            const formatDate = (date: Date) => {
+                const d = String(date.getDate()).padStart(2, '0');
+                const m = String(date.getMonth() + 1).padStart(2, '0');
+                const y = date.getFullYear();
+                return `${d}/${m}/${y}`;
+            };
+
+            const fitFontSize = (
+                text: string,
+                maxWidth: number,
+                startSize: number,
+                minSize: number,
+            ) => {
+                let size = startSize;
+                while (size > minSize) {
+                    doc.fontSize(size);
+                    if (doc.widthOfString(text) <= maxWidth) return size;
+                    size -= 1;
+                }
+                return minSize;
+            };
+
+            const drawCenteredText = (
+                text: string,
+                y: number,
+                size: number,
+                color: string,
+                options?: { width?: number; x?: number; font?: string },
+            ) => {
+                if (options?.font) {
+                    doc.font(options.font);
+                } else {
+                    doc.font('Helvetica');
+                }
+
+                const width = options?.width ?? pageWidth;
+                const x = options?.x ?? 0;
+
+                doc
+                    .fillColor(color)
+                    .fontSize(size)
+                    .text(text, x, y, {
+                        width,
+                        align: 'center',
+                    });
+            };
+
+            const drawInfoBlock = (
+                x: number,
+                y: number,
+                w: number,
+                h: number,
+                title: string,
+                value: string,
+            ) => {
+                doc
+                    .save()
+                    .roundedRect(x, y + 4, w, h, 12)
+                    .fillColor(colors.shadow)
+                    .fill()
+                    .restore();
+
+                doc
+                    .save()
+                    .roundedRect(x, y, w, h, 12)
+                    .fillColor(colors.cardBg)
+                    .fill()
+                    .restore();
+
+                doc
+                    .lineWidth(1)
+                    .strokeColor(colors.border)
+                    .roundedRect(x, y, w, h, 12)
+                    .stroke();
+
+                doc
+                    .fillColor(colors.textMuted)
+                    .font('Helvetica')
+                    .fontSize(10)
+                    .text(title, x, y + 11, {
+                        width: w,
+                        align: 'center',
+                    });
+
+                doc
+                    .fillColor(colors.textDark)
+                    .font('Helvetica-Bold')
+                    .fontSize(12)
+                    .text(value, x + 10, y + 28, {
+                        width: w - 20,
+                        align: 'center',
+                    });
+            };
 
             // Background
             doc.rect(0, 0, pageWidth, pageHeight).fill(colors.softBg);
 
-            // Outer border
+            // Decorative outer border
             doc
                 .lineWidth(2)
                 .strokeColor(colors.orange)
                 .rect(24, 24, pageWidth - 48, pageHeight - 48)
                 .stroke();
 
-            // Top header band
+            // Inner subtle border
             doc
-                .fillColor(colors.blue)
-                .rect(24, 24, pageWidth - 48, 120)
-                .fill();
+                .lineWidth(1)
+                .strokeColor('#D9DDE8')
+                .rect(36, 36, pageWidth - 72, pageHeight - 72)
+                .stroke();
 
-            // Orange accent line under header
+            // Top header
+            doc
+                .save()
+                .fillColor(colors.blue)
+                .roundedRect(24, 24, pageWidth - 48, 118, 0)
+                .fill()
+                .restore();
+
+            // Slight darker layer for depth
+            doc
+                .save()
+                .fillColor(colors.blueDark)
+                .rect(24, 24, pageWidth - 48, 24)
+                .fill()
+                .restore();
+
+            // Orange accent line
             doc
                 .fillColor(colors.orange)
-                .rect(24, 144, pageWidth - 48, 8)
+                .rect(24, 142, pageWidth - 48, 7)
                 .fill();
 
-            // Logo
+            // Logo block
+            doc
+                .save()
+                .roundedRect(54, 44, 110, 62, 10)
+                .fillColor('rgba(255,255,255,0.06)')
+                .fill()
+                .restore();
+
             if (fs.existsSync(logoPath)) {
-                doc.image(logoPath, 55, 42, {
-                    fit: [220, 80],
+                doc.image(logoPath, 62, 51, {
+                    fit: [90, 45],
+                    valign: 'center',
                 });
+            } else {
+                doc
+                    .fillColor(colors.white)
+                    .font('Helvetica-Bold')
+                    .fontSize(24)
+                    .text('BAU', 68, 62);
             }
 
-            // Header right text
+            // Right header text
             doc
                 .fillColor(colors.white)
+                .font('Helvetica-Bold')
                 .fontSize(16)
-                .text('OFFICIAL CERTIFICATE', pageWidth - 250, 55, {
-                    width: 180,
+                .text('OFFICIAL CERTIFICATE', pageWidth - 270, 56, {
+                    width: 200,
                     align: 'right',
                 });
 
             doc
+                .fillColor('#D9E1FF')
+                .font('Helvetica')
                 .fontSize(11)
-                .fillColor('#DDE3FF')
-                .text('BAU ACADEMY', pageWidth - 250, 80, {
-                    width: 180,
+                .text('BAU ACADEMY', pageWidth - 270, 81, {
+                    width: 200,
                     align: 'right',
                 });
 
-            // Main title
-            doc
-                .fillColor(colors.textDark)
-                .fontSize(28)
-                .text('Certificate of Completion', 0, 185, {
-                    align: 'center',
-                });
+            // Main content
+            drawCenteredText('Certificate of Completion', 182, 29, colors.textDark, {
+                font: 'Helvetica-Bold',
+            });
 
-            // Subtitle
-            doc
-                .fillColor(colors.textMuted)
-                .fontSize(15)
-                .text('This certificate is proudly awarded to', 0, 230, {
-                    align: 'center',
-                });
+            drawCenteredText(
+                'This certificate is proudly awarded to',
+                228,
+                14,
+                colors.textMuted,
+                { font: 'Helvetica' },
+            );
 
-            // Name
-            doc
-                .fillColor(colors.blue)
-                .fontSize(30)
-                .text(fullName, 100, 270, {
-                    width: pageWidth - 200,
-                    align: 'center',
-                });
+            const nameMaxWidth = pageWidth - 220;
+            const nameFontSize = fitFontSize(safeText(fullName), nameMaxWidth, 31, 22);
 
-            // Orange underline under name
-            const underlineWidth = 320;
+            drawCenteredText(safeText(fullName), 262, nameFontSize, colors.blue, {
+                x: 110,
+                width: pageWidth - 220,
+                font: 'Helvetica-Bold',
+            });
+
+            // Underline under name
+            const underlineWidth = 290;
             const underlineX = (pageWidth - underlineWidth) / 2;
             doc
                 .lineWidth(3)
                 .strokeColor(colors.orange)
-                .moveTo(underlineX, 320)
-                .lineTo(underlineX + underlineWidth, 320)
+                .moveTo(underlineX, 317)
+                .lineTo(underlineX + underlineWidth, 317)
                 .stroke();
 
-            // Course text
-            doc
-                .fillColor(colors.textMuted)
-                .fontSize(15)
-                .text('for successfully completing the course', 0, 345, {
-                    align: 'center',
-                });
+            drawCenteredText(
+                'for successfully completing the course',
+                341,
+                14,
+                colors.textMuted,
+                { font: 'Helvetica' },
+            );
 
-            doc
-                .fillColor(colors.textDark)
-                .fontSize(24)
-                .text(courseTitle, 120, 380, {
-                    width: pageWidth - 240,
-                    align: 'center',
-                });
+            const courseMaxWidth = pageWidth - 260;
+            const courseFontSize = fitFontSize(safeText(courseTitle), courseMaxWidth, 24, 18);
+
+            drawCenteredText(safeText(courseTitle), 374, courseFontSize, colors.textDark, {
+                x: 130,
+                width: pageWidth - 260,
+                font: 'Helvetica-Bold',
+            });
 
             // Score badge
+            const badgeW = 180;
+            const badgeH = 46;
+            const badgeX = pageWidth / 2 - badgeW / 2;
+            const badgeY = 430;
+
             doc
-                .roundedRect(pageWidth / 2 - 85, 430, 170, 44, 12)
+                .save()
+                .roundedRect(badgeX, badgeY + 4, badgeW, badgeH, 13)
+                .fillColor('#EFC27A')
+                .fill()
+                .restore();
+
+            doc
+                .save()
+                .roundedRect(badgeX, badgeY, badgeW, badgeH, 13)
                 .fillColor(colors.orange)
-                .fill();
+                .fill()
+                .restore();
 
             doc
                 .fillColor(colors.white)
+                .font('Helvetica-Bold')
                 .fontSize(16)
-                .text(`Final Score: ${percent}%`, pageWidth / 2 - 85, 444, {
+                .text(`Final Score: ${percent}%`, badgeX, badgeY + 14, {
+                    width: badgeW,
+                    align: 'center',
+                });
+
+            // Bottom info blocks
+            const infoY = 500;
+            const infoW = 175;
+            const infoH = 58;
+            const infoGap = 24;
+            const totalInfoWidth = infoW * 3 + infoGap * 2;
+            const startX = (pageWidth - totalInfoWidth) / 2;
+            const dateText = formatDate(issuedAt);
+
+            drawInfoBlock(startX, infoY, infoW, infoH, 'Issue Date', dateText);
+            drawInfoBlock(
+                startX + infoW + infoGap,
+                infoY,
+                infoW,
+                infoH,
+                'Certificate ID',
+                safeText(certificateId),
+            );
+            drawInfoBlock(
+                startX + (infoW + infoGap) * 2,
+                infoY,
+                infoW,
+                infoH,
+                'Issued By',
+                'BAU Academy',
+            );
+
+            // Signature lines
+            const sigLineY = 595;
+            const sigTextY = 603;
+
+            // Left signature
+            doc
+                .lineWidth(1)
+                .strokeColor(colors.lineSoft)
+                .moveTo(92, sigLineY)
+                .lineTo(262, sigLineY)
+                .stroke();
+
+            // Right signature
+            doc
+                .lineWidth(1)
+                .strokeColor(colors.lineSoft)
+                .moveTo(pageWidth - 262, sigLineY)
+                .lineTo(pageWidth - 92, sigLineY)
+                .stroke();
+
+            doc
+                .fillColor(colors.textMuted)
+                .font('Helvetica')
+                .fontSize(10)
+                .text('Instructor / Academy', 92, sigTextY, {
                     width: 170,
                     align: 'center',
                 });
 
-            // Bottom info cards
-            const cardY = 510;
-            const cardW = 180;
-            const gap = 25;
-            const totalW = cardW * 3 + gap * 2;
-            const startX = (pageWidth - totalW) / 2;
-
-            const dateText = issuedAt.toLocaleDateString('en-GB');
-
-            const cards = [
-                // { title: 'Issue Date', value: dateText },
-                { title: 'Certificate ID', value: certificateId || 'N/A' },
-                // { title: 'Academy', value: 'BAU Academy' },
-            ];
-
-            cards.forEach((card, index) => {
-                const x = startX + index * (cardW + gap);
-
-                doc
-                    .roundedRect(x, cardY, cardW, 60, 10)
-                    .fillColor(colors.white)
-                    .fill();
-
-                doc
-                    .lineWidth(1)
-                    .strokeColor(colors.border)
-                    .roundedRect(x, cardY, cardW, 60, 10)
-                    .stroke();
-
-                doc
-                    .fillColor(colors.textMuted)
-                    .fontSize(11)
-                    .text(card.title, x, cardY + 12, {
-                        width: cardW,
-                        align: 'center',
-                    });
-
-                doc
-                    .fillColor(colors.textDark)
-                    .fontSize(13)
-                    .text(card.value, x + 10, cardY + 30, {
-                        width: cardW - 20,
-                        align: 'center',
-                    });
-            });
-
-            // Signature lines
-            const sigY = pageHeight - 70;
-
-            doc
-                .lineWidth(1)
-                .strokeColor(colors.textMuted)
-                .moveTo(90, sigY)
-                .lineTo(250, sigY)
-                .stroke();
-
-            doc
-                .lineWidth(1)
-                .strokeColor(colors.textMuted)
-                .moveTo(pageWidth - 250, sigY)
-                .lineTo(pageWidth - 90, sigY)
-                .stroke();
-
             doc
                 .fillColor(colors.textMuted)
-                .fontSize(11)
-                .text('Instructor / Academy', 90, sigY + 8, {
-                    width: 160,
+                .font('Helvetica')
+                .fontSize(10)
+                .text('Authorized Signature', pageWidth - 262, sigTextY, {
+                    width: 170,
                     align: 'center',
                 });
 
+            // Decorative bottom center line
             doc
-                .fillColor(colors.textMuted)
-                .fontSize(11)
-                .text('Authorized Signature', pageWidth - 250, sigY + 8, {
-                    width: 160,
-                    align: 'center',
-                });
+                .lineWidth(1)
+                .strokeColor('#E4A94B')
+                .moveTo(pageWidth / 2 - 70, 602)
+                .lineTo(pageWidth / 2 + 70, 602)
+                .stroke();
 
             doc.end();
         });
