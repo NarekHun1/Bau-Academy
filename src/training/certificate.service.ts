@@ -171,9 +171,9 @@ export class CertificateService {
             const dateText = issuedAt.toLocaleDateString('en-GB');
 
             const cards = [
-                { title: 'Issue Date', value: dateText },
+                // { title: 'Issue Date', value: dateText },
                 { title: 'Certificate ID', value: certificateId || 'N/A' },
-                { title: 'Academy', value: 'BAU Academy' },
+                // { title: 'Academy', value: 'BAU Academy' },
             ];
 
             cards.forEach((card, index) => {
