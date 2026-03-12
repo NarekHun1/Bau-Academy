@@ -40,7 +40,6 @@ export class CertificateService {
                 blue: '#2F35B0',
                 blueDark: '#23298E',
                 orange: '#F8A12D',
-                orangeSoft: '#FDE7C3',
                 white: '#FFFFFF',
                 textDark: '#1F2937',
                 textMuted: '#6B7280',
@@ -51,9 +50,15 @@ export class CertificateService {
                 shadow: '#EEF1F8',
             };
 
-            const logoPath = path.join(process.cwd(), 'src', 'assets', 'bau academy.png');
+            const logoPath = path.join(
+                process.cwd(),
+                'src',
+                'assets',
+                'bau academy.png',
+            );
 
-            const safeText = (value?: string | null) => (value && value.trim() ? value.trim() : 'N/A');
+            const safeText = (value?: string | null) =>
+                value && value.trim() ? value.trim() : 'N/A';
 
             const formatDate = (date: Date) => {
                 const d = String(date.getDate()).padStart(2, '0');
@@ -84,22 +89,15 @@ export class CertificateService {
                 color: string,
                 options?: { width?: number; x?: number; font?: string },
             ) => {
-                if (options?.font) {
-                    doc.font(options.font);
-                } else {
-                    doc.font('Helvetica');
-                }
+                doc.font(options?.font || 'Helvetica');
 
                 const width = options?.width ?? pageWidth;
                 const x = options?.x ?? 0;
 
-                doc
-                    .fillColor(color)
-                    .fontSize(size)
-                    .text(text, x, y, {
-                        width,
-                        align: 'center',
-                    });
+                doc.fillColor(color).fontSize(size).text(text, x, y, {
+                    width,
+                    align: 'center',
+                });
             };
 
             const drawInfoBlock = (
@@ -170,11 +168,11 @@ export class CertificateService {
             doc
                 .save()
                 .fillColor(colors.blue)
-                .roundedRect(24, 24, pageWidth - 48, 118, 0)
+                .rect(24, 24, pageWidth - 48, 118)
                 .fill()
                 .restore();
 
-            // Slight darker layer for depth
+            // Top darker strip
             doc
                 .save()
                 .fillColor(colors.blueDark)
@@ -192,8 +190,10 @@ export class CertificateService {
             doc
                 .save()
                 .roundedRect(54, 44, 110, 62, 10)
-                .fillColor('rgba(255,255,255,0.06)')
+                .fillColor('#ffffff')
+                .fillOpacity(0.08)
                 .fill()
+                .fillOpacity(1)
                 .restore();
 
             if (fs.existsSync(logoPath)) {
@@ -228,11 +228,12 @@ export class CertificateService {
                     align: 'right',
                 });
 
-            // Main content
+            // Main title
             drawCenteredText('Certificate of Completion', 182, 29, colors.textDark, {
                 font: 'Helvetica-Bold',
             });
 
+            // Subtitle
             drawCenteredText(
                 'This certificate is proudly awarded to',
                 228,
@@ -241,8 +242,14 @@ export class CertificateService {
                 { font: 'Helvetica' },
             );
 
+            // Full name
             const nameMaxWidth = pageWidth - 220;
-            const nameFontSize = fitFontSize(safeText(fullName), nameMaxWidth, 31, 22);
+            const nameFontSize = fitFontSize(
+                safeText(fullName),
+                nameMaxWidth,
+                31,
+                22,
+            );
 
             drawCenteredText(safeText(fullName), 262, nameFontSize, colors.blue, {
                 x: 110,
@@ -250,9 +257,10 @@ export class CertificateService {
                 font: 'Helvetica-Bold',
             });
 
-            // Underline under name
+            // Orange underline under name
             const underlineWidth = 290;
             const underlineX = (pageWidth - underlineWidth) / 2;
+
             doc
                 .lineWidth(3)
                 .strokeColor(colors.orange)
@@ -260,6 +268,7 @@ export class CertificateService {
                 .lineTo(underlineX + underlineWidth, 317)
                 .stroke();
 
+            // Course subtitle
             drawCenteredText(
                 'for successfully completing the course',
                 341,
@@ -268,20 +277,32 @@ export class CertificateService {
                 { font: 'Helvetica' },
             );
 
+            // Course title
             const courseMaxWidth = pageWidth - 260;
-            const courseFontSize = fitFontSize(safeText(courseTitle), courseMaxWidth, 24, 18);
+            const courseFontSize = fitFontSize(
+                safeText(courseTitle),
+                courseMaxWidth,
+                24,
+                18,
+            );
 
-            drawCenteredText(safeText(courseTitle), 374, courseFontSize, colors.textDark, {
-                x: 130,
-                width: pageWidth - 260,
-                font: 'Helvetica-Bold',
-            });
+            drawCenteredText(
+                safeText(courseTitle),
+                374,
+                courseFontSize,
+                colors.textDark,
+                {
+                    x: 130,
+                    width: pageWidth - 260,
+                    font: 'Helvetica-Bold',
+                },
+            );
 
             // Score badge
             const badgeW = 180;
             const badgeH = 46;
             const badgeX = pageWidth / 2 - badgeW / 2;
-            const badgeY = 430;
+            const badgeY = 422;
 
             doc
                 .save()
@@ -307,7 +328,7 @@ export class CertificateService {
                 });
 
             // Bottom info blocks
-            const infoY = 500;
+            const infoY = 478;
             const infoW = 175;
             const infoH = 58;
             const infoGap = 24;
@@ -316,6 +337,7 @@ export class CertificateService {
             const dateText = formatDate(issuedAt);
 
             drawInfoBlock(startX, infoY, infoW, infoH, 'Issue Date', dateText);
+
             drawInfoBlock(
                 startX + infoW + infoGap,
                 infoY,
@@ -324,6 +346,7 @@ export class CertificateService {
                 'Certificate ID',
                 safeText(certificateId),
             );
+
             drawInfoBlock(
                 startX + (infoW + infoGap) * 2,
                 infoY,
@@ -334,8 +357,8 @@ export class CertificateService {
             );
 
             // Signature lines
-            const sigLineY = 595;
-            const sigTextY = 603;
+            const sigLineY = pageHeight - 48;
+            const sigTextY = sigLineY + 8;
 
             // Left signature
             doc
@@ -370,14 +393,6 @@ export class CertificateService {
                     width: 170,
                     align: 'center',
                 });
-
-            // Decorative bottom center line
-            doc
-                .lineWidth(1)
-                .strokeColor('#E4A94B')
-                .moveTo(pageWidth / 2 - 70, 602)
-                .lineTo(pageWidth / 2 + 70, 602)
-                .stroke();
 
             doc.end();
         });
