@@ -5,6 +5,8 @@ import { ConfigService } from '@nestjs/config';
 import { TrainingAccessService } from '../training/training-access.service';
 import { QuizService } from '../training/quiz.service';
 import { CertificateService } from '../training/certificate.service';
+import { PrismaService } from '../prisma/prisma.service';
+
 
 function getAdminIds(config: ConfigService): number[] {
     const raw = config.get<string>('ADMIN_IDS') || '';
@@ -37,6 +39,7 @@ export class TelegramUpdate {
         private readonly access: TrainingAccessService,
         private readonly quizService: QuizService,
         private readonly certificateService: CertificateService,
+        private readonly prisma: PrismaService,
     ) {
         this.adminIds = getAdminIds(config);
     }
@@ -118,6 +121,7 @@ export class TelegramUpdate {
             );
 
             if (!result.finished) {
+
                 await ctx.editMessageText(
                     `📝 Թեստ\n\nՀարց ${result.index}/${result.total}\n\n${result.question.text}`,
                     {
@@ -205,11 +209,79 @@ export class TelegramUpdate {
                     },
                 );
             }
+            const lessonId = result.result.quiz.lessonId;
+
+            await ctx.reply(
+                '⭐ Գնահատեք Canva Pro դասընթացը',
+                Markup.inlineKeyboard([
+                    [
+                        Markup.button.callback('⭐', `rate:1:${lessonId}`),
+                        Markup.button.callback('⭐⭐', `rate:2:${lessonId}`),
+                        Markup.button.callback('⭐⭐⭐', `rate:3:${lessonId}`),
+                    ],
+                    [
+                        Markup.button.callback('⭐⭐⭐⭐', `rate:4:${lessonId}`),
+                        Markup.button.callback('⭐⭐⭐⭐⭐', `rate:5:${lessonId}`),
+                    ],
+                ]),
+            );
         } catch (e) {
             console.error('answerQuiz error', e);
             await ctx.reply('Սխալ առաջացավ պատասխանը մշակելիս։');
         }
     }
+    @Action(/^rate:(\d+):(\d+)$/)
+    async rateLesson(@Ctx() ctx: Context) {
+        try {
+            await ctx.answerCbQuery();
+        } catch {}
+
+        const data = getCallbackData(ctx);
+        if (!data) return;
+
+        const match = data.match(/^rate:(\d+):(\d+)$/);
+        if (!match) return;
+
+        const rating = Number(match[1]);
+        const lessonId = Number(match[2]);
+
+        if (rating < 1 || rating > 5) {
+            await ctx.reply('Սխալ գնահատական');
+            return;
+        }
+
+        const telegramId = ctx.from?.id?.toString();
+        if (!telegramId) return;
+
+        const user = await this.prisma.trainingUser.findUnique({
+            where: { telegramId },
+        });
+
+        if (!user) {
+            await ctx.reply('Օգտատերը չի գտնվել');
+            return;
+        }
+
+        await this.prisma.lessonReview.upsert({
+            where: {
+                lessonId_userId: {
+                    lessonId,
+                    userId: user.id,
+                },
+            },
+            update: { rating },
+            create: {
+                lessonId,
+                userId: user.id,
+                rating,
+            },
+        });
+
+        await ctx.editMessageText(
+            `✅ Շնորհակալություն գնահատականի համար\n\n⭐ Ձեր գնահատականը՝ ${rating}/5`,
+        );
+    }
+
     // ───────────────────────── START ─────────────────────────
     @Start()
     async start(@Ctx() ctx: Context) {
