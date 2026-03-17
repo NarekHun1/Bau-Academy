@@ -7,7 +7,6 @@ import { QuizService } from '../training/quiz.service';
 import { CertificateService } from '../training/certificate.service';
 import { PrismaService } from '../prisma/prisma.service';
 
-
 function getAdminIds(config: ConfigService): number[] {
     const raw = config.get<string>('ADMIN_IDS') || '';
     return raw
@@ -121,7 +120,6 @@ export class TelegramUpdate {
             );
 
             if (!result.finished) {
-
                 await ctx.editMessageText(
                     `📝 Թեստ\n\nՀարց ${result.index}/${result.total}\n\n${result.question.text}`,
                     {
@@ -148,21 +146,12 @@ export class TelegramUpdate {
             else if (percent >= 50) comment = 'Լավ է, բայց արժե կրկնել նյութը 🙂';
             else comment = 'Խորհուրդ է տրվում նորից անցնել դասերը և կրկին փորձել։';
 
-            const fullName = result.result.user.fullName?.trim();
+            const fullName = result.result.user.fullName?.trim() || 'Չի նշված';
 
-            if (!fullName) {
-                await ctx.reply(
-                    '🎓 Սերտիֆիկատ ստանալու համար նախ գրեք Ձեր անունն ու ազգանունը։ Օրինակ՝ Արման Օգանեսյան',
-                );
-                return;
-            }
-
-            // Сначала обновляем сообщение с результатом теста
             await ctx.editMessageText(
                 `✅ Թեստն ավարտված է\n\n📊 Ձեր արդյունքը՝ ${score}/${total}\n📈 ${percent}%\n💬 ${comment}`,
             );
 
-            // Уведомление админам
             for (const adminId of this.adminIds) {
                 try {
                     await ctx.telegram.sendMessage(
@@ -180,36 +169,20 @@ export class TelegramUpdate {
                 }
             }
 
-            // Если 80%+ — выдаем сертификат
             if (percent >= 80) {
-                const certificateId = this.certificateService.generateCertificateId(
-                    result.result.user.id,
-                    result.result.quiz.id,
-                );
-
-                const pdf = await this.certificateService.generateCertificateBuffer({
-                    fullName,
-                    courseTitle: result.result.quiz.title,
-                    percent,
-                    issuedAt: new Date(),
-                    certificateId,
+                await this.prisma.trainingUser.update({
+                    where: { id: result.result.user.id },
+                    data: {
+                        awaitingCertificateName: true,
+                        certificateAttemptId: result.result.id,
+                    },
                 });
 
                 await ctx.reply(
-                    `🎓 Շնորհավորում ենք ${fullName}!\n\nԴուք հաջողությամբ անցել եք թեստը և ստացել եք սերտիֆիկատ։\n\n📈 Արդյունք՝ ${percent}%`,
-                );
-
-                await ctx.telegram.sendDocument(
-                    ctx.chat!.id,
-                    {
-                        source: pdf,
-                        filename: `certificate-${certificateId}.pdf`,
-                    },
-                    {
-                        caption: `🎓 Ձեր սերտիֆիկատը\nID: ${certificateId}`,
-                    },
+                    '🎓 Սերտիֆիկատ ստանալու համար խնդրում ենք հիմա գրեք Ձեր անունն ու ազգանունը այնպես, ինչպես պետք է գրվի սերտիֆիկատում։\n\nՕրինակ՝ Արման Օգանեսյան',
                 );
             }
+
             const lessonId = result.result.quiz.lessonId;
 
             await ctx.reply(
@@ -231,6 +204,7 @@ export class TelegramUpdate {
             await ctx.reply('Սխալ առաջացավ պատասխանը մշակելիս։');
         }
     }
+
     @Action(/^rate:(\d+):(\d+)$/)
     async rateLesson(@Ctx() ctx: Context) {
         try {
@@ -710,9 +684,103 @@ export class TelegramUpdate {
         if (!from || !text) return;
 
         const telegramId = String(from.id);
-        const t = text.trim();
+        const t = text.trim().replace(/\s+/g, ' ');
 
         const user = await this.access.getUserByTelegramId(telegramId);
+
+        // 1) Ждём имя для сертификата
+        if (user?.awaitingCertificateName && user.certificateAttemptId) {
+            if (t.split(' ').length < 2) {
+                await ctx.reply(
+                    'Խնդրում եմ գրեք անուն և ազգանուն (առնվազն 2 բառ)։ Օրինակ՝ Արման Օգանեսյան',
+                );
+                return;
+            }
+
+            const updatedUser = await this.prisma.trainingUser.update({
+                where: { id: user.id },
+                data: {
+                    fullName: t,
+                    awaitingCertificateName: false,
+                },
+            });
+
+            const attempt = await this.prisma.quizAttempt.findUnique({
+                where: { id: user.certificateAttemptId },
+                include: {
+                    quiz: true,
+                    user: true,
+                },
+            });
+
+            if (!attempt || !attempt.finishedAt) {
+                await this.prisma.trainingUser.update({
+                    where: { id: user.id },
+                    data: {
+                        certificateAttemptId: null,
+                        awaitingCertificateName: false,
+                    },
+                });
+
+                await ctx.reply('❌ Սերտիֆիկատի տվյալները չեն գտնվել։ Փորձեք նորից կամ դիմեք ադմինին։');
+                return;
+            }
+
+            const percent = Math.round((attempt.score / attempt.total) * 100);
+
+            if (percent < 80) {
+                await this.prisma.trainingUser.update({
+                    where: { id: user.id },
+                    data: {
+                        certificateAttemptId: null,
+                        awaitingCertificateName: false,
+                    },
+                });
+
+                await ctx.reply('❌ Այս թեստի արդյունքը բավարար չէ սերտիֆիկատ ստանալու համար։');
+                return;
+            }
+
+            const certificateId = this.certificateService.generateCertificateId(
+                updatedUser.id,
+                attempt.quizId,
+            );
+
+            const pdf = await this.certificateService.generateCertificateBuffer({
+                fullName: t,
+                courseTitle: attempt.quiz.title,
+                percent,
+                issuedAt: new Date(),
+                certificateId,
+            });
+
+            await this.prisma.trainingUser.update({
+                where: { id: user.id },
+                data: {
+                    certificateAttemptId: null,
+                    awaitingCertificateName: false,
+                },
+            });
+
+            await ctx.reply(
+                `🎓 Շնորհավորում ենք ${t}!\n\nԴուք հաջողությամբ անցել եք թեստը և ստացել եք սերտիֆիկատ։\n\n📈 Արդյունք՝ ${percent}%`,
+            );
+
+            await ctx.telegram.sendDocument(
+                ctx.chat!.id,
+                {
+                    source: pdf,
+                    filename: `certificate-${certificateId}.pdf`,
+                },
+                {
+                    caption: `🎓 Ձեր սերտիֆիկատը\nID: ${certificateId}`,
+                },
+            );
+
+            return;
+        }
+
+        // 2) Есть доступ, но нет сохранённого ФИО
         if (user?.hasAccess && !user.fullName) {
             if (t.split(' ').length < 2) {
                 await ctx.reply('Խնդրում եմ գրեք անուն և ազգանուն (2 բառ)։ Օրինակ՝ Արման Օգանեսյան');
@@ -728,6 +796,7 @@ export class TelegramUpdate {
             return;
         }
 
+        // 3) Нет доступа — пробуем активировать код
         if (!(await this.access.hasAccess(telegramId))) {
             const res = await this.access.activateCodeForUser(telegramId, t);
 

@@ -8,15 +8,19 @@ datasource db {
 }
 
 model TrainingUser {
-  id                  Int                   @id @default(autoincrement())
-  telegramId          String                @unique
-  username            String?
-  firstName           String?
-  lastName            String?
-  hasAccess           Boolean               @default(false)
-  createdAt           DateTime              @default(now())
-  updatedAt           DateTime              @updatedAt
-  fullName            String?
+  id         Int      @id @default(autoincrement())
+  telegramId String   @unique
+  username   String?
+  firstName  String?
+  lastName   String?
+  hasAccess  Boolean  @default(false)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+  fullName   String?
+
+  awaitingCertificateName Boolean @default(false)
+  certificateAttemptId    Int?
+
   codes               AccessCode[]
   requests            AccessRequest[]
   LessonAccessRequest LessonAccessRequest[]
