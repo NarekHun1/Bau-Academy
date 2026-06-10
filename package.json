@@ -19,7 +19,6 @@
     "@nestjs/platform-express": "^11.1.13",
     "@nestjs/schedule": "^6.1.1",
     "@prisma/client": "^6.19.0",
-    "@types/pdfkit": "^0.17.5",
     "dotenv": "^17.3.1",
     "jsonwebtoken": "^9.0.3",
     "nestjs-telegraf": "^2.9.1",
@@ -31,6 +30,7 @@
   "devDependencies": {
     "@nestjs/cli": "^11.0.16",
     "@types/node": "^25.2.1",
+    "@types/pdfkit": "^0.17.6",
     "prisma": "^6.19.0",
     "ts-node": "^10.9.2",
     "typescript": "^5.9.3"
