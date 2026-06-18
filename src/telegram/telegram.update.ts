@@ -179,7 +179,7 @@ export class TelegramUpdate {
                 });
 
                 await ctx.reply(
-                    '🎓 Սերտիֆիկատ ստանալու համար խնդրում ենք հիմա գրեք Ձեր անունն ու ազգանունը այնպես, ինչպես պետք է գրվի սերտիֆիկատում։\n\nՕրինակ՝ Արման Օգանեսյան',
+                    '🎓 Սերտիֆիկատ ստանալու համար խնդրում ենք հիմա գրեք Ձեր անունն ու ազգանունը այնպես, ինչպես պետք է գրվի սերտիֆիկատում։\n\nՕրինակ՝ Armen Oganisyan',
                 );
             }
 
@@ -276,7 +276,7 @@ export class TelegramUpdate {
         if (already) {
             const u = await this.access.getUserByTelegramId(telegramId);
             if (u && !u.fullName) {
-                await ctx.reply('✅ Մուտքը կա։ Խնդրում եմ գրեք Ձեր անունն ու ազգանունը (օր․ Արման Օգանեսյան)');
+                await ctx.reply('✅ Մուտքը կա։ Խնդրում եմ գրեք Ձեր անունն ու ազգանունը (օր․ Armen Oganisyan)');
                 return;
             }
 
@@ -520,7 +520,7 @@ export class TelegramUpdate {
         }
 
         if (!u.fullName) {
-            await ctx.reply('Խնդրում եմ գրեք Ձեր անունն ու ազգանունը (օր․ Արման Օգանեսյան)');
+            await ctx.reply('Խնդրում եմ գրեք Ձեր անունն ու ազգանունը (օր․ Arman Oganisyan)');
             return;
         }
 
@@ -548,7 +548,7 @@ export class TelegramUpdate {
             try {
                 await ctx.answerCbQuery('Նախ գրեք Ձեր անունն ու ազգանունը');
             } catch {}
-            await ctx.reply('Խնդրում եմ գրեք Ձեր անունն ու ազգանունը (օր․ Արման Օգանեսյան)');
+            await ctx.reply('Խնդրում եմ գրեք Ձեր անունն ու ազգանունը (օր․ Armen Oganisyan)');
             return;
         }
 
@@ -692,7 +692,7 @@ export class TelegramUpdate {
         if (user?.awaitingCertificateName && user.certificateAttemptId) {
             if (t.split(' ').length < 2) {
                 await ctx.reply(
-                    'Խնդրում եմ գրեք անուն և ազգանուն (առնվազն 2 բառ)։ Օրինակ՝ Արման Օգանեսյան',
+                    'Խնդրում եմ գրեք անուն և ազգանուն (առնվազն 2 բառ)։ Օրինակ՝ Armen Oganisyan',
                 );
                 return;
             }
@@ -783,7 +783,7 @@ export class TelegramUpdate {
         // 2) Есть доступ, но нет сохранённого ФИО
         if (user?.hasAccess && !user.fullName) {
             if (t.split(' ').length < 2) {
-                await ctx.reply('Խնդրում եմ գրեք անուն և ազգանուն (2 բառ)։ Օրինակ՝ Արման Օգանեսյան');
+                await ctx.reply('Խնդրում եմ գրեք անուն և ազգանուն (2 բառ)։ Օրինակ՝ Armen Oganisyan');
                 return;
             }
 
@@ -801,7 +801,7 @@ export class TelegramUpdate {
             const res = await this.access.activateCodeForUser(telegramId, t);
 
             if (res.ok) {
-                await ctx.reply('✅ Կոդը ընդունվեց։ Հիմա գրեք Ձեր անունն ու ազգանունը (օր․ Արման Օգանեսյան)');
+                await ctx.reply('✅ Կոդը ընդունվեց։ Հիմա գրեք Ձեր անունն ու ազգանունը (օր․ Armen Oganisyan)');
                 return;
             }
 
