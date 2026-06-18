@@ -297,7 +297,147 @@ async function seed() {
                 },
             ],
         });
+// ─────────────────────────────────────────────
+// CapCut — lesson-3
+// ─────────────────────────────────────────────
+        const capcutCh3 = await tx.lessonChapter.findUnique({
+            where: { lessonId_slug_chapter: { lessonId: capcut.id, slug: 'lesson-3' } },
+        });
+        if (!capcutCh3) throw new Error('CapCut lesson-3 not found');
 
+        await tx.lessonItem.deleteMany({ where: { chapterId: capcutCh3.id } });
+
+        await tx.lessonItem.createMany({
+            data: [
+                {
+                    chapterId: capcutCh3.id,
+                    order: 1,
+                    type: LessonItemType.TEXT,
+                    text: `🖇️ Դաս 3
+
+🎬 Այս դասի ընթացքում կսովորենք, թե ինչպես ստեղծել կոլլաժ էֆֆեկտ ✨
+📱 3 վիդեո՝ մեկ էկրանին
+
+Նաև կսովորենք, թե ինչպես ավելացնել լոգո 🏷️✨`,
+                },
+                {
+                    chapterId: capcutCh3.id,
+                    order: 2,
+                    type: LessonItemType.VIDEO,
+                    fileId: 'BAACAgIAAxkBAAIRnGoz-oFjGB4l_AWDAev9m33C8wGUAAIxqQACbF2gSSzy0n8GZ60rPAQ',
+                    text: 'Կոլլաժ էֆֆեկտ — 3 վիդեո մեկ էկրանին',
+                },
+                {
+                    chapterId: capcutCh3.id,
+                    order: 3,
+                    type: LessonItemType.VIDEO,
+                    fileId: 'BAACAgIAAxkBAAIRnmoz-yAM4VhZI1jsxjGv5ZPFT6sLAAI7qQACbF2gSbFmMYVooIuSPAQ',
+                    text: 'Լոգոյի ավելացում',
+                },
+            ],
+        });
+// ─────────────────────────────────────────────
+// CapCut — lesson-4
+// ─────────────────────────────────────────────
+        const capcutCh4 = await tx.lessonChapter.findUnique({
+            where: { lessonId_slug_chapter: { lessonId: capcut.id, slug: 'lesson-4' } },
+        });
+        if (!capcutCh4) throw new Error('CapCut lesson-4 not found');
+
+        await tx.lessonItem.deleteMany({ where: { chapterId: capcutCh4.id } });
+
+        await tx.lessonItem.createMany({
+            data: [
+                {
+                    chapterId: capcutCh4.id,
+                    order: 1,
+                    type: LessonItemType.TEXT,
+                    text: `🖇️ Դաս 4
+
+🎬 Այս դասում կսովորենք, թե ինչպես ստեղծել backstage էֆեկտ 🎥✨
+
+🎬 Այս էֆֆեկտը օգտագործիր, որպեսզի վիդեոն ավելի դիտելի ու հետաքրքիր լինի 👀✨
+
+Նաև կսովորենք ինչպես ստանալ ստոպ-կադրի էֆեկտ 📸✨`,
+                },
+                {
+                    chapterId: capcutCh4.id,
+                    order: 2,
+                    type: LessonItemType.VIDEO,
+                    fileId: 'BAACAgIAAxkBAAIRoGoz-46EKXzfK4ep0PRAwtCCSAR3AAJFqQACbF2gSYGNlOeWlqzRPAQ',
+                    text: 'Backstage էֆեկտ',
+                },
+                {
+                    chapterId: capcutCh4.id,
+                    order: 3,
+                    type: LessonItemType.VIDEO,
+                    fileId: 'BAACAgIAAxkBAAIRomoz-7w23NSV2XLY9AI224mQHXl9AAJKqQACbF2gSVZkW-qn4_5oPAQ',
+                    text: 'Ստոպ-կադրի էֆեկտ',
+                },
+            ],
+        });
+        // ─────────────────────────────────────────────
+// CapCut — lesson-5
+// ─────────────────────────────────────────────
+        const capcutCh5 = await tx.lessonChapter.findUnique({
+            where: { lessonId_slug_chapter: { lessonId: capcut.id, slug: 'lesson-5' } },
+        });
+        if (!capcutCh5) throw new Error('CapCut lesson-5 not found');
+
+        await tx.lessonItem.deleteMany({ where: { chapterId: capcutCh5.id } });
+
+        await tx.lessonItem.createMany({
+            data: [
+                {
+                    chapterId: capcutCh5.id,
+                    order: 1,
+                    type: LessonItemType.TEXT,
+                    text: `🖇️ Դաս 5
+
+Ինչպես վիդեոյին ավելացնել այլ վիդեո կամ լուսանկար`,
+                },
+                {
+                    chapterId: capcutCh5.id,
+                    order: 2,
+                    type: LessonItemType.VIDEO,
+                    fileId: 'BAACAgIAAxkBAAIRpGoz_JfZUCV-fLhK86-ysEktS1sRAAJXqQACbF2gScAQtrkusBwgPAQ',
+                    text: 'Ինչպես վիդեոյին ավելացնել այլ վիդեո կամ լուսանկար',
+                },
+                {
+                    chapterId: capcutCh5.id,
+                    order: 3,
+                    type: LessonItemType.PHOTO,
+                    fileId: 'AgACAgIAAxkBAAIRpmoz_MpN5Px4y7zR7kJBuKr6TjLGAAJCHmsbbF2gSSHUjp84AecJAQADAgADeQADPAQ',
+                    text: 'Հոլովակի գույները մգացնելու կամ ավելի պարզ դարձնելու համար օգտագործիր սա՝',
+                },
+                {
+                    chapterId: capcutCh5.id,
+                    order: 4,
+                    type: LessonItemType.PHOTO,
+                    fileId: 'AgACAgIAAxkBAAIRqGoz_PodTYxmtW7rRO6_MchNd3ARAAJEHmsbbF2gSUYgPVqxp9oLAQADAgADeQADPAQ',
+                    text: 'Ետևի ֆոնը խամրացնելու համար օգտագործիր այս ֆիլտրը՝',
+                },
+                {
+                    chapterId: capcutCh5.id,
+                    order: 5,
+                    type: LessonItemType.PHOTO,
+                    fileId: 'AgACAgIAAxkBAAIRqmoz_RhXUwUXde5soGdBJ9TbNfyGAAJFHmsbbF2gSQa_D_kEI3OxAQADAgADeQADPAQ',
+                    text: 'Ձայնի որակը ավելի լավացնելու համար օգտագործիր սա՝',
+                },
+                {
+                    chapterId: capcutCh5.id,
+                    order: 6,
+                    type: LessonItemType.TEXT,
+                    text: `Սիրելի՛ մասնակիցներ,
+
+Շնորհակալություն մեր CapCut Pro դասընթացին մասնակցելու համար։
+
+Հուսով ենք, որ ձեռք բերած գիտելիքներն ու հմտությունները կօգնեն ձեզ ստեղծել ավելի պրոֆեսիոնալ և տպավորիչ վիդեոներ, զարգացնել ձեր բրենդը կամ ստեղծագործական գործունեությունը։
+
+Մաղթում ենք նոր հաջողություններ, ստեղծագործ գաղափարներ և մեծ ձեռքբերումներ։`,
+                },
+            ],
+        });
         // ─────────────────────────────────────────────
         // Canva — lesson-1 (поправил trim)
         // ─────────────────────────────────────────────
