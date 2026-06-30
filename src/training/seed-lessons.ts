@@ -7,6 +7,7 @@ async function seed() {
     const lessons = [
         { slug: 'capcut-pro', title: '🎬 CapCut Pro (Օնլայն դասընթաց)' },
         { slug: 'canva-pro', title: '🎨 Canva Pro (Օնլայն դասընթաց)' },
+        { slug: 'ads-manager', title: '📢 Ads Manager (Օնլայն դասընթաց)' },
     ];
 
     const chapters = [
@@ -32,18 +33,70 @@ async function seed() {
 
         const canva = await tx.lesson.findUnique({ where: { slug: 'canva-pro' } });
         if (!canva) throw new Error('canva-pro not found');
+        const adsManager = await tx.lesson.findUnique({
+            where: { slug: 'ads-manager' },
+        });
 
+        if (!adsManager) {
+            throw new Error('ads-manager not found');
+        }
         // 2) Chapters for both lessons
         for (const ch of chapters) {
             await tx.lessonChapter.upsert({
-                where: { lessonId_slug_chapter: { lessonId: capcut.id, slug: ch.slug } },
-                update: { title: ch.title, order: ch.order },
-                create: { lessonId: capcut.id, slug: ch.slug, title: ch.title, order: ch.order },
+                where: {
+                    lessonId_slug_chapter: {
+                        lessonId: capcut.id,
+                        slug: ch.slug,
+                    },
+                },
+                update: {
+                    title: ch.title,
+                    order: ch.order,
+                },
+                create: {
+                    lessonId: capcut.id,
+                    slug: ch.slug,
+                    title: ch.title,
+                    order: ch.order,
+                },
             });
+
             await tx.lessonChapter.upsert({
-                where: { lessonId_slug_chapter: { lessonId: canva.id, slug: ch.slug } },
-                update: { title: ch.title, order: ch.order },
-                create: { lessonId: canva.id, slug: ch.slug, title: ch.title, order: ch.order },
+                where: {
+                    lessonId_slug_chapter: {
+                        lessonId: canva.id,
+                        slug: ch.slug,
+                    },
+                },
+                update: {
+                    title: ch.title,
+                    order: ch.order,
+                },
+                create: {
+                    lessonId: canva.id,
+                    slug: ch.slug,
+                    title: ch.title,
+                    order: ch.order,
+                },
+            });
+
+            await tx.lessonChapter.upsert({
+                where: {
+                    lessonId_slug_chapter: {
+                        lessonId: adsManager.id,
+                        slug: ch.slug,
+                    },
+                },
+                update: {
+                    title: ch.title,
+                    order: ch.order,
+                },
+                create: {
+                    lessonId: adsManager.id,
+                    slug: ch.slug,
+                    title: ch.title,
+                    order: ch.order,
+                },
             });
         }
 

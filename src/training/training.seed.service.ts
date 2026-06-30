@@ -19,6 +19,7 @@ export class TrainingSeedService implements OnModuleInit {
             const lessons = [
                 { slug: 'capcut-pro', title: '🎬 CapCut Pro (Օնլայն դասընթաց)' },
                 { slug: 'canva-pro', title: '🎨 Canva Pro (Օնլայն դասընթաց)' },
+                { slug: 'ads-manager', title: '📢 Ads Manager (Օնլայն դասընթաց)' },
             ];
 
             const capcutChapters = [
@@ -34,6 +35,9 @@ export class TrainingSeedService implements OnModuleInit {
                 { order: 2, slug: 'lesson-2', title: 'Դաս 2 ' },
                 { order: 3, slug: 'lesson-3', title: 'Դաս 3 ' },
                 { order: 4, slug: 'lesson-4', title: 'Դաս 4 ' },
+            ];
+            const adsManagerChapters = [
+                { order: 1, slug: 'lesson-1', title: 'Դաս 1 ' },
             ];
 
             await this.prisma.$transaction(async (tx) => {
@@ -98,6 +102,62 @@ export class TrainingSeedService implements OnModuleInit {
                         },
                     });
                 }
+                const adsManager = await tx.lesson.findUnique({
+                    where: { slug: 'ads-manager' },
+                });
+
+                if (!adsManager) {
+                    throw new Error('ads-manager not found');
+                }
+                // Ads Manager chapters
+                for (const ch of adsManagerChapters) {
+                    await tx.lessonChapter.upsert({
+                        where: {
+                            lessonId_slug_chapter: {
+                                lessonId: adsManager.id,
+                                slug: ch.slug,
+                            },
+                        },
+                        update: {
+                            title: ch.title,
+                            order: ch.order,
+                        },
+                        create: {
+                            lessonId: adsManager.id,
+                            slug: ch.slug,
+                            title: ch.title,
+                            order: ch.order,
+                        },
+                    });
+                }
+                // ─────────────────────────────────────────────
+// Ads Manager — lesson-1
+// ─────────────────────────────────────────────
+                const adsManagerCh1 = await tx.lessonChapter.findUnique({
+                    where: {
+                        lessonId_slug_chapter: {
+                            lessonId: adsManager.id,
+                            slug: 'lesson-1',
+                        },
+                    },
+                });
+
+                if (!adsManagerCh1) throw new Error('Ads Manager lesson-1 not found');
+
+                await tx.lessonItem.deleteMany({
+                    where: { chapterId: adsManagerCh1.id },
+                });
+
+                await tx.lessonItem.createMany({
+                    data: [
+                        {
+                            chapterId: adsManagerCh1.id,
+                            order: 1,
+                            type: LessonItemType.VIDEO,
+                            fileId: 'BAACAgIAAxkBAAITQ2pECkrdKOPI0njmy4SyF-Z12mxwAAJnqQACndUhStq95JX9TYzRPAQ',
+                        },
+                    ],
+                });
 
                 // Удаляем старый lesson-5 у Canva, если он раньше был создан
                 const canvaLesson5 = await tx.lessonChapter.findUnique({
@@ -1059,4 +1119,5 @@ export class TrainingSeedService implements OnModuleInit {
             );
         }
     }
+
 }

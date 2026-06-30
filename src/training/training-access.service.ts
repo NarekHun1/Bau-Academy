@@ -9,11 +9,12 @@ function genCode() {
     return `MC-${part()}-${part()}`;
 }
 
-const LESSONS: { slug: string; title: string; emoji: string }[] = [
+const LESSONS = [
     { slug: 'canva-pro', title: 'Canva Pro', emoji: '🎨' },
     { slug: 'telegram', title: 'Telegram', emoji: '✈️' },
     { slug: 'linkedin', title: 'LinkedIn', emoji: '💼' },
     { slug: 'capcut-pro', title: 'CapCut Pro', emoji: '🎬' },
+    { slug: 'ads-manager', title: 'Meta Ads Manager', emoji: '📢' }, // NEW
 ];
 
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
