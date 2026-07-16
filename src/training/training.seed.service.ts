@@ -38,6 +38,7 @@ export class TrainingSeedService implements OnModuleInit {
             ];
             const adsManagerChapters = [
                 { order: 1, slug: 'lesson-1', title: 'Դաս 1 ' },
+                { order: 2, slug: 'lesson-2', title: 'Դաս 2 ' },
             ];
 
             await this.prisma.$transaction(async (tx) => {
@@ -155,6 +156,41 @@ export class TrainingSeedService implements OnModuleInit {
                             order: 1,
                             type: LessonItemType.VIDEO,
                             fileId: 'BAACAgIAAxkBAAITQ2pECkrdKOPI0njmy4SyF-Z12mxwAAJnqQACndUhStq95JX9TYzRPAQ',
+                        },
+                    ],
+                });
+
+                // ─────────────────────────────────────────────
+                // Ads Manager — lesson-2
+                // ─────────────────────────────────────────────
+                const adsManagerCh2 = await tx.lessonChapter.findUnique({
+                    where: {
+                        lessonId_slug_chapter: {
+                            lessonId: adsManager.id,
+                            slug: 'lesson-2',
+                        },
+                    },
+                });
+
+                if (!adsManagerCh2) throw new Error('Ads Manager lesson-2 not found');
+
+                await tx.lessonItem.deleteMany({
+                    where: { chapterId: adsManagerCh2.id },
+                });
+
+                await tx.lessonItem.createMany({
+                    data: [
+                        {
+                            chapterId: adsManagerCh2.id,
+                            order: 1,
+                            type: LessonItemType.VIDEO,
+                            fileId: 'BAACAgIAAxkBAAIXFWpYwjmv01hrqa-U1Rqx0Et1ueDFAAKMpAACfc7AShFTaAbp2QboPQQ',
+                        },
+                        {
+                            chapterId: adsManagerCh2.id,
+                            order: 2,
+                            type: LessonItemType.VIDEO,
+                            fileId: 'BAACAgIAAxkBAAIXF2pYwoyKHF_r7gAB_t5iKNLD0eyujgACj6QAAn3OwEpzzYGrsmNMQD0E',
                         },
                     ],
                 });

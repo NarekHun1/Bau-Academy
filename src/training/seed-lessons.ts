@@ -101,6 +101,39 @@ async function seed() {
         }
 
         // ─────────────────────────────────────────────
+        // Ads Manager — lesson-2
+        // ─────────────────────────────────────────────
+        const adsManagerCh2 = await tx.lessonChapter.findUnique({
+            where: {
+                lessonId_slug_chapter: {
+                    lessonId: adsManager.id,
+                    slug: 'lesson-2',
+                },
+            },
+        });
+
+        if (!adsManagerCh2) throw new Error('Ads Manager lesson-2 not found');
+
+        await tx.lessonItem.deleteMany({ where: { chapterId: adsManagerCh2.id } });
+
+        await tx.lessonItem.createMany({
+            data: [
+                {
+                    chapterId: adsManagerCh2.id,
+                    order: 1,
+                    type: LessonItemType.VIDEO,
+                    fileId: 'BAACAgIAAxkBAAIXFWpYwjmv01hrqa-U1Rqx0Et1ueDFAAKMpAACfc7AShFTaAbp2QboPQQ',
+                },
+                {
+                    chapterId: adsManagerCh2.id,
+                    order: 2,
+                    type: LessonItemType.VIDEO,
+                    fileId: 'BAACAgIAAxkBAAIXF2pYwoyKHF_r7gAB_t5iKNLD0eyujgACj6QAAn3OwEpzzYGrsmNMQD0E',
+                },
+            ],
+        });
+
+        // ─────────────────────────────────────────────
         // CapCut — lesson-1 (твой блок)
         // ─────────────────────────────────────────────
         const capcutCh1 = await tx.lessonChapter.findUnique({
